@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, Copy, Check } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useWalletStore } from '../store';
 
 interface ReceiveProps {
@@ -17,25 +18,6 @@ export default function Receive({ onBack }: ReceiveProps) {
       setTimeout(() => setCopied(false), 2000);
     }
   };
-
-  // Simple QR code placeholder - in production, use a proper QR library
-  const qrPlaceholder = (
-    <div className="w-48 h-48 bg-white rounded-xl flex items-center justify-center border-2 border-gray-100">
-      <div className="text-center">
-        <div className="grid grid-cols-5 gap-1 p-4">
-          {Array.from({ length: 25 }).map((_, i) => (
-            <div
-              key={i}
-              className={`w-6 h-6 rounded-sm ${
-                Math.random() > 0.5 ? 'bg-gray-800' : 'bg-white'
-              }`}
-            />
-          ))}
-        </div>
-        <p className="text-xs text-gray-400 mt-2">QR Code</p>
-      </div>
-    </div>
-  );
 
   return (
     <div className="w-full h-full bg-gradient-to-br from-qfc-50 to-blue-50 flex flex-col">
@@ -58,7 +40,16 @@ export default function Receive({ onBack }: ReceiveProps) {
         </span>
 
         {/* QR Code */}
-        {qrPlaceholder}
+        <div className="bg-white p-4 rounded-2xl shadow-sm">
+          <QRCodeSVG
+            value={currentAddress || ''}
+            size={180}
+            level="M"
+            includeMargin={false}
+            bgColor="#ffffff"
+            fgColor="#1f2937"
+          />
+        </div>
 
         {/* Address */}
         <div className="mt-6 w-full max-w-sm">

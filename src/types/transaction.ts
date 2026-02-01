@@ -8,7 +8,7 @@ export interface TransactionRequest {
   nonce?: number;
 }
 
-export interface TransactionResult {
+export interface TransactionRecord {
   hash: string;
   from: string;
   to: string;
@@ -17,21 +17,29 @@ export interface TransactionResult {
   status: 'pending' | 'confirmed' | 'failed';
   blockNumber?: number;
   gasUsed?: string;
+  type: 'send' | 'receive' | 'contract' | 'token';
+  tokenSymbol?: string;
+  tokenAddress?: string;
+  nonce?: number;
 }
 
-export interface PendingTransaction {
-  id: number;
-  request: TransactionRequest;
+export interface PendingApproval {
+  id: string;
+  type: 'transaction' | 'sign' | 'connect';
   origin: string;
-  resolve: (hash: string) => void;
-  reject: (error: Error) => void;
+  favicon?: string;
+  timestamp: number;
+  data: TransactionRequest | SignRequest | ConnectRequest;
 }
 
-export interface SignMessageRequest {
-  id: number;
+export interface SignRequest {
   message: string;
   address: string;
+  isTypedData?: boolean;
+}
+
+export interface ConnectRequest {
   origin: string;
-  resolve: (signature: string) => void;
-  reject: (error: Error) => void;
+  title?: string;
+  favicon?: string;
 }

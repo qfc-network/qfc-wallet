@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { Wallet, NetworkConfig } from '../types/wallet';
-import { DEFAULT_NETWORK } from '../utils/constants';
+import type { TransactionRecord, PendingApproval } from '../types/transaction';
+import type { Token } from '../types/token';
+import { NETWORKS, NetworkKey } from '../utils/constants';
 
 interface WalletStore {
   // State
@@ -10,7 +12,11 @@ interface WalletStore {
   isLoading: boolean;
   balance: string;
   network: NetworkConfig;
+  networkKey: NetworkKey;
   error: string | null;
+  transactions: TransactionRecord[];
+  tokens: Token[];
+  pendingApproval: PendingApproval | null;
 
   // Actions
   setWallets: (wallets: Wallet[]) => void;
@@ -18,8 +24,11 @@ interface WalletStore {
   setUnlocked: (unlocked: boolean) => void;
   setLoading: (loading: boolean) => void;
   setBalance: (balance: string) => void;
-  setNetwork: (network: NetworkConfig) => void;
+  setNetwork: (network: NetworkConfig, key: NetworkKey) => void;
   setError: (error: string | null) => void;
+  setTransactions: (transactions: TransactionRecord[]) => void;
+  setTokens: (tokens: Token[]) => void;
+  setPendingApproval: (approval: PendingApproval | null) => void;
   reset: () => void;
 }
 
@@ -29,8 +38,12 @@ const initialState = {
   isUnlocked: false,
   isLoading: true,
   balance: '0',
-  network: DEFAULT_NETWORK,
+  network: NETWORKS.testnet,
+  networkKey: 'testnet' as NetworkKey,
   error: null as string | null,
+  transactions: [] as TransactionRecord[],
+  tokens: [] as Token[],
+  pendingApproval: null as PendingApproval | null,
 };
 
 export const useWalletStore = create<WalletStore>((set) => ({
@@ -41,8 +54,11 @@ export const useWalletStore = create<WalletStore>((set) => ({
   setUnlocked: (unlocked) => set({ isUnlocked: unlocked }),
   setLoading: (loading) => set({ isLoading: loading }),
   setBalance: (balance) => set({ balance }),
-  setNetwork: (network) => set({ network }),
+  setNetwork: (network, key) => set({ network, networkKey: key }),
   setError: (error) => set({ error }),
+  setTransactions: (transactions) => set({ transactions }),
+  setTokens: (tokens) => set({ tokens }),
+  setPendingApproval: (approval) => set({ pendingApproval: approval }),
   reset: () => set(initialState),
 }));
 
@@ -83,16 +99,24 @@ export const walletActions = {
 
       if (hasWallets && isUnlocked) {
         const wallets = await sendMessage<Wallet[]>('wallet_getAllAccounts');
-        const network = await sendMessage<NetworkConfig>('wallet_getNetwork');
+        const network = await sendMessage<{ network: NetworkConfig; key: NetworkKey }>('wallet_getNetwork');
 
         store.setWallets(wallets);
-        store.setNetwork(network);
+        store.setNetwork(network.network, network.key);
 
         if (wallets.length > 0) {
           const address = wallets[0].address;
           store.setCurrentAddress(address);
           await walletActions.refreshBalance(address);
+          await walletActions.loadTransactions(address);
+          await walletActions.loadTokens(address);
         }
+      }
+
+      // Check for pending approvals
+      const pending = await sendMessage<PendingApproval | null>('wallet_getPendingApproval');
+      if (pending) {
+        store.setPendingApproval(pending);
       }
     } catch (error) {
       console.error('Failed to initialize:', error);
@@ -116,7 +140,6 @@ export const walletActions = {
       store.setCurrentAddress(result.address);
       store.setUnlocked(true);
 
-      // Refresh wallet list
       const wallets = await sendMessage<Wallet[]>('wallet_getAllAccounts');
       store.setWallets(wallets);
 
@@ -144,7 +167,6 @@ export const walletActions = {
       store.setCurrentAddress(address);
       store.setUnlocked(true);
 
-      // Refresh wallet list
       const wallets = await sendMessage<Wallet[]>('wallet_getAllAccounts');
       store.setWallets(wallets);
 
@@ -168,7 +190,6 @@ export const walletActions = {
       if (success) {
         store.setUnlocked(true);
 
-        // Refresh wallet data
         const wallets = await sendMessage<Wallet[]>('wallet_getAllAccounts');
         store.setWallets(wallets);
 
@@ -176,6 +197,8 @@ export const walletActions = {
           const address = wallets[0].address;
           store.setCurrentAddress(address);
           await walletActions.refreshBalance(address);
+          await walletActions.loadTransactions(address);
+          await walletActions.loadTokens(address);
         }
       } else {
         store.setError('Wrong password');
@@ -224,8 +247,115 @@ export const walletActions = {
       await sendMessage('wallet_switchAccount', [address]);
       store.setCurrentAddress(address);
       await walletActions.refreshBalance(address);
+      await walletActions.loadTransactions(address);
+      await walletActions.loadTokens(address);
     } catch (error) {
       console.error('Failed to switch account:', error);
+    }
+  },
+
+  async switchNetwork(networkKey: NetworkKey) {
+    const store = useWalletStore.getState();
+
+    try {
+      await sendMessage('wallet_switchNetwork', [networkKey]);
+      const network = NETWORKS[networkKey];
+      store.setNetwork(network, networkKey);
+      // Refresh balance on new network
+      await walletActions.refreshBalance();
+      await walletActions.refreshTokenBalances();
+    } catch (error) {
+      console.error('Failed to switch network:', error);
+    }
+  },
+
+  async loadTransactions(address?: string) {
+    const store = useWalletStore.getState();
+    const addr = address || store.currentAddress;
+
+    if (!addr) return;
+
+    try {
+      const transactions = await sendMessage<TransactionRecord[]>('wallet_getTransactions', [addr]);
+      store.setTransactions(transactions);
+    } catch (error) {
+      console.error('Failed to load transactions:', error);
+    }
+  },
+
+  async loadTokens(address?: string) {
+    const store = useWalletStore.getState();
+    const addr = address || store.currentAddress;
+
+    if (!addr) return;
+
+    try {
+      const tokens = await sendMessage<Token[]>('wallet_getTokens', [addr]);
+      store.setTokens(tokens);
+    } catch (error) {
+      console.error('Failed to load tokens:', error);
+    }
+  },
+
+  async addToken(tokenAddress: string) {
+    const store = useWalletStore.getState();
+    const addr = store.currentAddress;
+
+    if (!addr) return;
+
+    try {
+      const token = await sendMessage<Token>('wallet_addToken', [addr, tokenAddress]);
+      const tokens = [...store.tokens, token];
+      store.setTokens(tokens);
+      return token;
+    } catch (error) {
+      console.error('Failed to add token:', error);
+      throw error;
+    }
+  },
+
+  async removeToken(tokenAddress: string) {
+    const store = useWalletStore.getState();
+    const addr = store.currentAddress;
+
+    if (!addr) return;
+
+    try {
+      await sendMessage('wallet_removeToken', [addr, tokenAddress]);
+      const tokens = store.tokens.filter(
+        (t) => t.address.toLowerCase() !== tokenAddress.toLowerCase()
+      );
+      store.setTokens(tokens);
+    } catch (error) {
+      console.error('Failed to remove token:', error);
+    }
+  },
+
+  async refreshTokenBalances() {
+    const store = useWalletStore.getState();
+    const addr = store.currentAddress;
+
+    if (!addr || store.tokens.length === 0) return;
+
+    try {
+      const tokens = await sendMessage<Token[]>('wallet_refreshTokenBalances', [addr]);
+      store.setTokens(tokens);
+    } catch (error) {
+      console.error('Failed to refresh token balances:', error);
+    }
+  },
+
+  async approveRequest(approve: boolean) {
+    const store = useWalletStore.getState();
+    const pending = store.pendingApproval;
+
+    if (!pending) return;
+
+    try {
+      await sendMessage('wallet_resolveApproval', [pending.id, approve]);
+      store.setPendingApproval(null);
+    } catch (error) {
+      console.error('Failed to resolve approval:', error);
     }
   },
 };

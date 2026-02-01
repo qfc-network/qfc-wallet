@@ -1,22 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw } from 'lucide-react';
+import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink } from 'lucide-react';
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
+import { NETWORKS, NetworkKey } from '../../utils/constants';
 import SendPage from './Send';
 import Receive from './Receive';
+import Settings from './Settings';
+import AddToken from './AddToken';
+import ApprovalDialog from '../components/ApprovalDialog';
 
 type Tab = 'assets' | 'activity';
-type View = 'home' | 'send' | 'receive' | 'settings';
+type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken';
 
 export default function Home() {
-  const { currentAddress, balance, network } = useWalletStore();
+  const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval } = useWalletStore();
   const [activeTab, setActiveTab] = useState<Tab>('assets');
   const [view, setView] = useState<View>('home');
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showNetworkMenu, setShowNetworkMenu] = useState(false);
 
   useEffect(() => {
-    // Refresh balance periodically
     const interval = setInterval(() => {
       walletActions.refreshBalance();
     }, 30000);
@@ -35,6 +39,8 @@ export default function Home() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await walletActions.refreshBalance();
+    await walletActions.loadTransactions();
+    await walletActions.refreshTokenBalances();
     setRefreshing(false);
   };
 
@@ -42,8 +48,18 @@ export default function Home() {
     walletActions.lock();
   };
 
-  // USD value (mock - would normally fetch from price API)
+  const handleNetworkSwitch = async (key: NetworkKey) => {
+    await walletActions.switchNetwork(key);
+    setShowNetworkMenu(false);
+  };
+
+  // USD value (mock)
   const usdValue = (parseFloat(balance) * 2.34).toFixed(2);
+
+  // Show pending approval dialog
+  if (pendingApproval) {
+    return <ApprovalDialog />;
+  }
 
   if (view === 'send') {
     return <SendPage onBack={() => setView('home')} />;
@@ -51,6 +67,14 @@ export default function Home() {
 
   if (view === 'receive') {
     return <Receive onBack={() => setView('home')} />;
+  }
+
+  if (view === 'settings') {
+    return <Settings onBack={() => setView('home')} />;
+  }
+
+  if (view === 'addToken') {
+    return <AddToken onBack={() => setView('home')} />;
   }
 
   return (
@@ -65,7 +89,7 @@ export default function Home() {
           <button
             onClick={handleRefresh}
             className="p-2 hover:bg-white/50 rounded-lg"
-            title="Refresh balance"
+            title="Refresh"
           >
             <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
           </button>
@@ -79,11 +103,33 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Network indicator */}
-      <div className="px-4 mb-2">
-        <span className="text-xs bg-qfc-100 text-qfc-700 px-2 py-1 rounded-full">
+      {/* Network Selector */}
+      <div className="px-4 mb-2 relative">
+        <button
+          onClick={() => setShowNetworkMenu(!showNetworkMenu)}
+          className="flex items-center gap-1 text-xs bg-qfc-100 text-qfc-700 px-3 py-1.5 rounded-full hover:bg-qfc-200 transition-colors"
+        >
+          <span className={`w-2 h-2 rounded-full ${networkKey === 'mainnet' ? 'bg-green-500' : 'bg-yellow-500'}`} />
           {network.name}
-        </span>
+          <ChevronDown size={14} />
+        </button>
+
+        {showNetworkMenu && (
+          <div className="absolute top-full left-4 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-10">
+            {(Object.keys(NETWORKS) as NetworkKey[]).map((key) => (
+              <button
+                key={key}
+                onClick={() => handleNetworkSwitch(key)}
+                className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 ${
+                  key === networkKey ? 'text-qfc-600 font-medium' : 'text-gray-700'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${key === 'mainnet' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                {NETWORKS[key].name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Balance Card */}
@@ -161,16 +207,46 @@ export default function Home() {
         <div className="flex-1 overflow-y-auto">
           {activeTab === 'assets' ? (
             <div className="space-y-2">
+              {/* Native QFC */}
               <AssetItem
                 name="QFC"
                 symbol="QFC"
                 balance={balance}
                 value={usdValue}
               />
+
+              {/* Tokens */}
+              {tokens.map((token) => (
+                <AssetItem
+                  key={token.address}
+                  name={token.name}
+                  symbol={token.symbol}
+                  balance={token.balance || '0'}
+                  value="0.00"
+                  isToken
+                />
+              ))}
+
+              {/* Add Token Button */}
+              <button
+                onClick={() => setView('addToken')}
+                className="w-full flex items-center justify-center gap-2 p-3 text-qfc-600 hover:bg-qfc-50 rounded-xl transition-colors"
+              >
+                <Plus size={18} />
+                <span className="text-sm font-medium">Add Token</span>
+              </button>
             </div>
           ) : (
-            <div className="text-center text-gray-500 py-8">
-              No recent activity
+            <div className="space-y-2">
+              {transactions.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  No recent activity
+                </div>
+              ) : (
+                transactions.map((tx) => (
+                  <TransactionItem key={tx.hash} tx={tx} currentAddress={currentAddress || ''} explorerUrl={network.explorerUrl} />
+                ))
+              )}
             </div>
           )}
         </div>
@@ -211,17 +287,21 @@ function AssetItem({
   symbol,
   balance,
   value,
+  isToken,
 }: {
   name: string;
   symbol: string;
   balance: string;
   value: string;
+  isToken?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-qfc-400 to-blue-400 rounded-full flex items-center justify-center text-white font-bold">
-          Q
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+          isToken ? 'bg-gradient-to-br from-green-400 to-emerald-500' : 'bg-gradient-to-br from-qfc-400 to-blue-400'
+        }`}>
+          {symbol.charAt(0)}
         </div>
         <div>
           <div className="font-semibold">{name}</div>
@@ -231,6 +311,58 @@ function AssetItem({
       <div className="text-right">
         <div className="font-semibold">{balance}</div>
         <div className="text-sm text-gray-500">{symbol}</div>
+      </div>
+    </div>
+  );
+}
+
+function TransactionItem({
+  tx,
+  currentAddress,
+  explorerUrl,
+}: {
+  tx: { hash: string; from: string; to: string; value: string; timestamp: number; status: string; type: string };
+  currentAddress: string;
+  explorerUrl: string;
+}) {
+  const isSent = tx.from.toLowerCase() === currentAddress.toLowerCase();
+  const date = new Date(tx.timestamp);
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+  return (
+    <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+          isSent ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+        }`}>
+          {isSent ? '↑' : '↓'}
+        </div>
+        <div>
+          <div className="font-medium">{isSent ? 'Sent' : 'Received'}</div>
+          <div className="text-xs text-gray-500">{dateStr} {timeStr}</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="text-right">
+          <div className={`font-medium ${isSent ? 'text-red-600' : 'text-green-600'}`}>
+            {isSent ? '-' : '+'}{tx.value} QFC
+          </div>
+          <div className={`text-xs ${
+            tx.status === 'confirmed' ? 'text-green-500' :
+            tx.status === 'pending' ? 'text-yellow-500' : 'text-red-500'
+          }`}>
+            {tx.status}
+          </div>
+        </div>
+        <a
+          href={`${explorerUrl}/tx/${tx.hash}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-1 text-gray-400 hover:text-gray-600"
+        >
+          <ExternalLink size={14} />
+        </a>
       </div>
     </div>
   );

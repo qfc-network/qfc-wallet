@@ -1,15 +1,35 @@
+import { ethers } from 'ethers';
 import { WalletController } from './WalletController';
-import { DEFAULT_NETWORK } from '../utils/constants';
-import { walletStorage } from '../utils/storage';
+import { NETWORKS, NetworkKey } from '../utils/constants';
+import { walletStorage, txStorage, tokenStorage, networkStorage } from '../utils/storage';
 import { RPC_ERRORS } from '../types/network';
+import type { TransactionRecord, PendingApproval } from '../types/transaction';
+import type { Token } from '../types/token';
+import { ERC20_ABI } from '../types/token';
+
+// State
+let currentNetworkKey: NetworkKey = 'testnet';
+let pendingApproval: PendingApproval | null = null;
+let approvalResolvers: Map<string, { resolve: (value: boolean) => void }> = new Map();
 
 // Initialize wallet controller
-const walletController = new WalletController(DEFAULT_NETWORK);
+const walletController = new WalletController(NETWORKS[currentNetworkKey]);
 
 // Initialize on service worker start
-walletController.initialize().then(() => {
+async function initialize() {
+  await walletController.initialize();
+
+  // Load saved network
+  const savedNetwork = await networkStorage.getCurrentNetwork();
+  if (savedNetwork && savedNetwork in NETWORKS) {
+    currentNetworkKey = savedNetwork as NetworkKey;
+    walletController.setNetwork(NETWORKS[currentNetworkKey]);
+  }
+
   console.log('[QFC] Background service initialized');
-});
+}
+
+initialize();
 
 // Handle messages from popup and content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -25,7 +45,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     });
 
-  // Return true to indicate async response
   return true;
 });
 
@@ -66,14 +85,22 @@ async function handleMessage(
       case 'eth_requestAccounts': {
         const account = walletController.getCurrentAccount();
         if (account) {
-          // Add to connected sites
+          // Check if already connected
+          const isConnected = await walletStorage.isConnected(senderOrigin, account);
+          if (!isConnected) {
+            // Request approval
+            const approved = await requestApproval('connect', senderOrigin, {
+              origin: senderOrigin,
+            });
+            if (!approved) {
+              throw { code: RPC_ERRORS.USER_REJECTED.code, message: 'User rejected the request' };
+            }
+          }
           await walletStorage.addConnectedSite(senderOrigin, account);
           result = [account];
         } else if (!walletController.hasWallets()) {
-          // No wallet - need to create one
           throw new Error('No wallet found. Please create a wallet first.');
         } else {
-          // Wallet locked - need to unlock
           throw new Error('Wallet is locked. Please unlock your wallet.');
         }
         break;
@@ -82,10 +109,7 @@ async function handleMessage(
       case 'eth_accounts': {
         const account = walletController.getCurrentAccount();
         if (account) {
-          const isConnected = await walletStorage.isConnected(
-            senderOrigin,
-            account
-          );
+          const isConnected = await walletStorage.isConnected(senderOrigin, account);
           result = isConnected ? [account] : [];
         } else {
           result = [];
@@ -122,7 +146,33 @@ async function handleMessage(
       // Transaction methods
       case 'eth_sendTransaction': {
         const [txParams] = params as [Record<string, unknown>];
-        result = await walletController.sendTransaction(txParams);
+
+        // Request approval for external requests
+        if (sender?.tab) {
+          const approved = await requestApproval('transaction', senderOrigin, txParams);
+          if (!approved) {
+            throw { code: RPC_ERRORS.USER_REJECTED.code, message: 'User rejected the request' };
+          }
+        }
+
+        const hash = await walletController.sendTransaction(txParams);
+
+        // Save transaction to history
+        const account = walletController.getCurrentAccount();
+        if (account) {
+          const tx: TransactionRecord = {
+            hash,
+            from: (txParams.from as string) || account,
+            to: txParams.to as string,
+            value: (Number(BigInt(txParams.value as string || '0')) / 1e18).toFixed(4),
+            timestamp: Date.now(),
+            status: 'pending',
+            type: txParams.data && txParams.data !== '0x' ? 'contract' : 'send',
+          };
+          await txStorage.addTransaction(account, tx);
+        }
+
+        result = hash;
         break;
       }
 
@@ -142,18 +192,46 @@ async function handleMessage(
       // Signing methods
       case 'personal_sign': {
         const [message, _address] = params as [string, string];
+
+        if (sender?.tab) {
+          const approved = await requestApproval('sign', senderOrigin, { message, address: _address });
+          if (!approved) {
+            throw { code: RPC_ERRORS.USER_REJECTED.code, message: 'User rejected the request' };
+          }
+        }
+
         result = await walletController.signMessage(message);
         break;
       }
 
       case 'eth_sign': {
         const [_address, message] = params as [string, string];
+
+        if (sender?.tab) {
+          const approved = await requestApproval('sign', senderOrigin, { message, address: _address });
+          if (!approved) {
+            throw { code: RPC_ERRORS.USER_REJECTED.code, message: 'User rejected the request' };
+          }
+        }
+
         result = await walletController.signMessage(message);
         break;
       }
 
       case 'eth_signTypedData_v4': {
         const [_address, typedData] = params as [string, string];
+
+        if (sender?.tab) {
+          const approved = await requestApproval('sign', senderOrigin, {
+            message: typedData,
+            address: _address,
+            isTypedData: true,
+          });
+          if (!approved) {
+            throw { code: RPC_ERRORS.USER_REJECTED.code, message: 'User rejected the request' };
+          }
+        }
+
         result = await walletController.signTypedData(typedData);
         break;
       }
@@ -206,7 +284,128 @@ async function handleMessage(
       }
 
       case 'wallet_getNetwork': {
-        result = walletController.getNetwork();
+        result = {
+          network: walletController.getNetwork(),
+          key: currentNetworkKey,
+        };
+        break;
+      }
+
+      case 'wallet_switchNetwork': {
+        const [networkKey] = params as [NetworkKey];
+        if (networkKey in NETWORKS) {
+          currentNetworkKey = networkKey;
+          walletController.setNetwork(NETWORKS[networkKey]);
+          await networkStorage.setCurrentNetwork(networkKey);
+          result = true;
+        } else {
+          throw new Error('Unknown network');
+        }
+        break;
+      }
+
+      // Transaction history
+      case 'wallet_getTransactions': {
+        const [address] = params as [string];
+        result = await txStorage.getHistory(address);
+        break;
+      }
+
+      // Token methods
+      case 'wallet_getTokens': {
+        const [address] = params as [string];
+        result = await tokenStorage.getTokens(address);
+        break;
+      }
+
+      case 'wallet_addToken': {
+        const [walletAddress, tokenAddress] = params as [string, string];
+        const network = walletController.getNetwork();
+        const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+        const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+
+        try {
+          const [name, symbol, decimals] = await Promise.all([
+            contract.name(),
+            contract.symbol(),
+            contract.decimals(),
+          ]);
+
+          const balance = await contract.balanceOf(walletAddress);
+          const formattedBalance = ethers.formatUnits(balance, decimals);
+
+          const token: Token = {
+            address: tokenAddress,
+            name,
+            symbol,
+            decimals: Number(decimals),
+            balance: formattedBalance,
+          };
+
+          await tokenStorage.addToken(walletAddress, token);
+          result = token;
+        } catch {
+          throw new Error('Invalid token contract');
+        }
+        break;
+      }
+
+      case 'wallet_removeToken': {
+        const [walletAddress, tokenAddress] = params as [string, string];
+        await tokenStorage.removeToken(walletAddress, tokenAddress);
+        result = true;
+        break;
+      }
+
+      case 'wallet_refreshTokenBalances': {
+        const [walletAddress] = params as [string];
+        const tokens = await tokenStorage.getTokens(walletAddress);
+        const network = walletController.getNetwork();
+        const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+
+        for (const token of tokens) {
+          try {
+            const contract = new ethers.Contract(token.address, ERC20_ABI, provider);
+            const balance = await contract.balanceOf(walletAddress);
+            token.balance = ethers.formatUnits(balance, token.decimals);
+            await tokenStorage.updateTokenBalance(walletAddress, token.address, token.balance);
+          } catch {
+            // Skip failed tokens
+          }
+        }
+
+        result = tokens;
+        break;
+      }
+
+      // Connected sites
+      case 'wallet_getConnectedSites': {
+        result = await walletStorage.getConnectedSites();
+        break;
+      }
+
+      case 'wallet_disconnectSite': {
+        const [origin] = params as [string];
+        await walletStorage.removeConnectedSite(origin);
+        result = true;
+        break;
+      }
+
+      // Approval methods
+      case 'wallet_getPendingApproval': {
+        result = pendingApproval;
+        break;
+      }
+
+      case 'wallet_resolveApproval': {
+        const [approvalId, approved] = params as [string, boolean];
+        const resolver = approvalResolvers.get(approvalId);
+        if (resolver) {
+          resolver.resolve(approved);
+          approvalResolvers.delete(approvalId);
+          pendingApproval = null;
+        }
+        result = true;
         break;
       }
 
@@ -233,6 +432,43 @@ async function handleMessage(
       },
     };
   }
+}
+
+// Request approval from popup
+async function requestApproval(
+  type: 'transaction' | 'sign' | 'connect',
+  origin: string,
+  data: unknown
+): Promise<boolean> {
+  const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  pendingApproval = {
+    id,
+    type,
+    origin,
+    timestamp: Date.now(),
+    data: data as PendingApproval['data'],
+  };
+
+  // Open popup if not already open
+  try {
+    await chrome.action.openPopup();
+  } catch {
+    // Popup might already be open
+  }
+
+  return new Promise((resolve) => {
+    approvalResolvers.set(id, { resolve });
+
+    // Timeout after 5 minutes
+    setTimeout(() => {
+      if (approvalResolvers.has(id)) {
+        approvalResolvers.delete(id);
+        pendingApproval = null;
+        resolve(false);
+      }
+    }, 5 * 60 * 1000);
+  });
 }
 
 // Keep service worker alive

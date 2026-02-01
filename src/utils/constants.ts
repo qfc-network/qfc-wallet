@@ -21,6 +21,8 @@ export const NETWORKS = {
   },
 } as const;
 
+export type NetworkKey = keyof typeof NETWORKS;
+
 export const DEFAULT_NETWORK = NETWORKS.testnet;
 
 // Auto-lock timeout (30 minutes)
@@ -36,6 +38,8 @@ export const STORAGE_KEYS = {
   NETWORK: 'qfc_network',
   CONNECTED_SITES: 'qfc_connected_sites',
   TX_HISTORY: 'qfc_tx_history',
+  TOKENS: 'qfc_tokens',
+  PENDING_APPROVALS: 'qfc_pending_approvals',
 } as const;
 
 // Message types
@@ -43,4 +47,6 @@ export const MESSAGE_TYPES = {
   REQUEST: 'QFC_REQUEST',
   RESPONSE: 'QFC_RESPONSE',
   NOTIFICATION: 'QFC_NOTIFICATION',
+  APPROVAL_REQUEST: 'QFC_APPROVAL_REQUEST',
+  APPROVAL_RESPONSE: 'QFC_APPROVAL_RESPONSE',
 } as const;

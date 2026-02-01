@@ -1,4 +1,6 @@
 import { STORAGE_KEYS } from './constants';
+import type { TransactionRecord } from '../types/transaction';
+import type { Token } from '../types/token';
 
 /**
  * Chrome storage wrapper with type safety
@@ -40,6 +42,13 @@ export const storage = {
     }
   },
 };
+
+interface WalletData {
+  address: string;
+  encryptedPrivateKey: string;
+  name: string;
+  createdAt: number;
+}
 
 /**
  * Typed storage helpers for wallet data
@@ -88,9 +97,100 @@ export const walletStorage = {
   },
 };
 
-interface WalletData {
-  address: string;
-  encryptedPrivateKey: string;
-  name: string;
-  createdAt: number;
-}
+/**
+ * Transaction history storage
+ */
+export const txStorage = {
+  async getHistory(address: string): Promise<TransactionRecord[]> {
+    const key = `${STORAGE_KEYS.TX_HISTORY}_${address.toLowerCase()}`;
+    return (await storage.get<TransactionRecord[]>(key)) ?? [];
+  },
+
+  async addTransaction(address: string, tx: TransactionRecord): Promise<void> {
+    const history = await this.getHistory(address);
+    // Add to beginning, keep last 100 transactions
+    history.unshift(tx);
+    if (history.length > 100) {
+      history.pop();
+    }
+    const key = `${STORAGE_KEYS.TX_HISTORY}_${address.toLowerCase()}`;
+    await storage.set(key, history);
+  },
+
+  async updateTransaction(
+    address: string,
+    hash: string,
+    updates: Partial<TransactionRecord>
+  ): Promise<void> {
+    const history = await this.getHistory(address);
+    const index = history.findIndex((tx) => tx.hash === hash);
+    if (index !== -1) {
+      history[index] = { ...history[index], ...updates };
+      const key = `${STORAGE_KEYS.TX_HISTORY}_${address.toLowerCase()}`;
+      await storage.set(key, history);
+    }
+  },
+
+  async clearHistory(address: string): Promise<void> {
+    const key = `${STORAGE_KEYS.TX_HISTORY}_${address.toLowerCase()}`;
+    await storage.remove(key);
+  },
+};
+
+/**
+ * Token storage
+ */
+export const tokenStorage = {
+  async getTokens(address: string): Promise<Token[]> {
+    const key = `${STORAGE_KEYS.TOKENS}_${address.toLowerCase()}`;
+    return (await storage.get<Token[]>(key)) ?? [];
+  },
+
+  async addToken(address: string, token: Token): Promise<void> {
+    const tokens = await this.getTokens(address);
+    // Check if token already exists
+    if (!tokens.find((t) => t.address.toLowerCase() === token.address.toLowerCase())) {
+      tokens.push(token);
+      const key = `${STORAGE_KEYS.TOKENS}_${address.toLowerCase()}`;
+      await storage.set(key, tokens);
+    }
+  },
+
+  async removeToken(address: string, tokenAddress: string): Promise<void> {
+    const tokens = await this.getTokens(address);
+    const filtered = tokens.filter(
+      (t) => t.address.toLowerCase() !== tokenAddress.toLowerCase()
+    );
+    const key = `${STORAGE_KEYS.TOKENS}_${address.toLowerCase()}`;
+    await storage.set(key, filtered);
+  },
+
+  async updateTokenBalance(
+    address: string,
+    tokenAddress: string,
+    balance: string
+  ): Promise<void> {
+    const tokens = await this.getTokens(address);
+    const token = tokens.find(
+      (t) => t.address.toLowerCase() === tokenAddress.toLowerCase()
+    );
+    if (token) {
+      token.balance = balance;
+      const key = `${STORAGE_KEYS.TOKENS}_${address.toLowerCase()}`;
+      await storage.set(key, tokens);
+    }
+  },
+};
+
+/**
+ * Network storage
+ */
+export const networkStorage = {
+  async getCurrentNetwork(): Promise<string> {
+    return (await storage.get<string>(STORAGE_KEYS.NETWORK)) ?? 'testnet';
+  },
+
+  async setCurrentNetwork(network: string): Promise<void> {
+    await storage.set(STORAGE_KEYS.NETWORK, network);
+  },
+};
