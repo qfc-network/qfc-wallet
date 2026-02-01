@@ -1,0 +1,201 @@
+import { useState } from 'react';
+import { ChevronLeft, AlertCircle } from 'lucide-react';
+import { useWalletStore, sendMessage } from '../store';
+import { isValidAddress } from '../../utils/validation';
+
+interface SendProps {
+  onBack: () => void;
+}
+
+export default function Send({ onBack }: SendProps) {
+  const { currentAddress, balance } = useWalletStore();
+  const [recipient, setRecipient] = useState('');
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [txHash, setTxHash] = useState('');
+
+  const handleSend = async () => {
+    setError('');
+
+    // Validate recipient
+    if (!isValidAddress(recipient)) {
+      setError('Invalid recipient address');
+      return;
+    }
+
+    // Validate amount
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setError('Invalid amount');
+      return;
+    }
+
+    if (amountNum > parseFloat(balance)) {
+      setError('Insufficient balance');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Convert amount to wei
+      const valueWei = BigInt(Math.floor(amountNum * 1e18));
+
+      const hash = await sendMessage<string>('eth_sendTransaction', [
+        {
+          from: currentAddress,
+          to: recipient,
+          value: '0x' + valueWei.toString(16),
+        },
+      ]);
+
+      setTxHash(hash);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Transaction failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const setMaxAmount = () => {
+    // Leave some for gas (0.01 QFC)
+    const max = Math.max(0, parseFloat(balance) - 0.01);
+    setAmount(max.toFixed(4));
+  };
+
+  if (txHash) {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-qfc-50 to-blue-50 flex flex-col">
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+            <svg
+              className="w-8 h-8 text-green-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+
+          <h2 className="text-xl font-bold text-gray-800 mb-2">
+            Transaction Sent!
+          </h2>
+          <p className="text-gray-500 text-center mb-4">
+            Your transaction has been submitted to the network
+          </p>
+
+          <div className="bg-white rounded-xl p-4 w-full max-w-sm mb-6">
+            <p className="text-xs text-gray-500 mb-1">Transaction Hash</p>
+            <p className="text-sm font-mono break-all">{txHash}</p>
+          </div>
+
+          <button
+            onClick={onBack}
+            className="w-full max-w-sm py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-qfc-50 to-blue-50 flex flex-col">
+      {/* Header */}
+      <div className="p-4 flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="p-2 hover:bg-white/50 rounded-lg"
+        >
+          <ChevronLeft size={24} />
+        </button>
+        <h1 className="text-lg font-bold">Send QFC</h1>
+      </div>
+
+      {/* Form */}
+      <div className="flex-1 p-4 space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Recipient Address
+          </label>
+          <input
+            type="text"
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder="0x..."
+            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Amount
+          </label>
+          <div className="relative">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.0"
+              step="0.0001"
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl pr-20 focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
+            />
+            <button
+              onClick={setMaxAmount}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-qfc-600 text-sm font-medium"
+            >
+              MAX
+            </button>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Available: {balance} QFC
+          </p>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 text-red-500 text-sm bg-red-50 p-3 rounded-xl">
+            <AlertCircle size={16} />
+            {error}
+          </div>
+        )}
+
+        {/* Transaction Summary */}
+        {recipient && amount && parseFloat(amount) > 0 && (
+          <div className="bg-white rounded-xl p-4 space-y-2">
+            <h3 className="font-medium text-gray-800">Transaction Summary</h3>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Amount</span>
+              <span>{amount} QFC</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Network Fee (est.)</span>
+              <span>~0.001 QFC</span>
+            </div>
+            <div className="border-t pt-2 flex justify-between font-medium">
+              <span>Total</span>
+              <span>{(parseFloat(amount) + 0.001).toFixed(4)} QFC</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Send Button */}
+      <div className="p-4">
+        <button
+          onClick={handleSend}
+          disabled={isLoading || !recipient || !amount}
+          className="w-full py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          {isLoading ? 'Sending...' : 'Send'}
+        </button>
+      </div>
+    </div>
+  );
+}
