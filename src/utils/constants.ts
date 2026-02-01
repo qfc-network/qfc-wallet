@@ -1,6 +1,15 @@
 // QFC Network Configuration
 
 export const NETWORKS = {
+  localhost: {
+    chainId: 9000,
+    chainIdHex: '0x2328',
+    name: 'QFC Local',
+    rpcUrl: 'http://127.0.0.1:8545',
+    explorerUrl: 'http://127.0.0.1:3000',
+    symbol: 'QFC',
+    decimals: 18,
+  },
   testnet: {
     chainId: 9000,
     chainIdHex: '0x2328',
@@ -23,7 +32,7 @@ export const NETWORKS = {
 
 export type NetworkKey = keyof typeof NETWORKS;
 
-export const DEFAULT_NETWORK = NETWORKS.testnet;
+export const DEFAULT_NETWORK = NETWORKS.localhost;
 
 // Auto-lock timeout (30 minutes)
 export const LOCK_TIMEOUT_MS = 30 * 60 * 1000;
