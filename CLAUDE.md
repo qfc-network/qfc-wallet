@@ -24,7 +24,8 @@ qfc-wallet/
 │   │   │   └── ApprovalDialog.tsx  # DApp 连接/交易审批对话框
 │   │   └── pages/
 │   │       ├── Home.tsx         # 主页 (余额、资产、交易历史)
-│   │       ├── Send.tsx         # 发送页面
+│   │       ├── Send.tsx         # 发送 QFC 页面
+│   │       ├── SendToken.tsx    # 发送 ERC-20 代币页面
 │   │       ├── Receive.tsx      # 接收页面 (QR码)
 │   │       ├── Settings.tsx     # 设置页面
 │   │       ├── AddToken.tsx     # 添加 ERC-20 代币
@@ -34,6 +35,7 @@ qfc-wallet/
 │   ├── utils/               # 工具函数
 │   │   ├── constants.ts     # 网络配置
 │   │   ├── crypto.ts        # 加密解密
+│   │   ├── prices.ts        # 代币价格 (模拟/API)
 │   │   ├── storage.ts       # Chrome 存储 (wallet/tx/token/network)
 │   │   └── validation.ts    # 验证函数
 │   │
@@ -122,6 +124,7 @@ npm run lint
 - `wallet_getTokens` - 获取代币列表
 - `wallet_addToken` - 添加代币
 - `wallet_removeToken` - 移除代币
+- `wallet_sendToken` - 发送代币转账
 - `wallet_refreshTokenBalances` - 刷新代币余额
 
 **DApp 连接**
@@ -138,18 +141,20 @@ npm run lint
 - [x] QR 码显示地址
 - [x] 交易历史持久化
 - [x] ERC-20 代币支持
-- [x] 网络切换 (测试网/主网)
+- [x] ERC-20 代币转账
+- [x] 代币价格显示 (模拟价格)
+- [x] 交易状态更新 (pending → confirmed/failed)
+- [x] 网络切换 (本地/测试网/主网)
 - [x] DApp 连接审批 UI
 - [x] 交易/签名审批 UI
 - [x] 已连接站点管理
 - [x] 30 分钟自动锁定
+- [x] Service Worker 状态持久化
 
 ### 待实现
-- [ ] 代币转账
-- [ ] 代币价格显示
-- [ ] 交易状态更新 (pending → confirmed)
-- [ ] 多语言支持
-- [ ] 硬件钱包集成
+- [ ] 多语言支持 (i18n)
+- [ ] 硬件钱包集成 (Ledger/Trezor)
+- [ ] 代币价格 API 集成 (CoinGecko)
 
 ## 安全特性
 
@@ -164,8 +169,17 @@ npm run lint
 
 | 网络 | Chain ID | RPC URL |
 |------|----------|---------|
+| 本地开发 | 9000 (0x2328) | http://127.0.0.1:8545 |
 | 测试网 | 9000 (0x2328) | https://rpc.testnet.qfc.network |
 | 主网 | 9001 (0x2329) | https://rpc.qfc.network |
+
+### 本地测试账户
+
+| 私钥 | 地址 | 余额 |
+|------|------|------|
+| `4242...42` (32字节) | `0x10d7812fbe50096ae82569fdad35f79628bc0084` | 1B QFC |
+| `4343...43` (32字节) | `0xfd3dabd401f1b94789d89ce947be9345cfbf44c3` | 1B QFC |
+| `4444...44` (32字节) | `0xb6d2be7dc3b62c39e5c5a6b744076e9c4dffb552` | 1B QFC |
 
 ## 存储结构
 

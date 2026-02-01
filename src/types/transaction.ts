@@ -17,7 +17,7 @@ export interface TransactionRecord {
   status: 'pending' | 'confirmed' | 'failed';
   blockNumber?: number;
   gasUsed?: string;
-  type: 'send' | 'receive' | 'contract' | 'token';
+  type: 'send' | 'receive' | 'contract' | 'token' | 'token_transfer';
   tokenSymbol?: string;
   tokenAddress?: string;
   nonce?: number;

@@ -365,6 +365,56 @@ async function handleMessage(
         break;
       }
 
+      case 'wallet_sendToken': {
+        const [_fromAddress, tokenAddress, toAddress, amount, decimals] = params as [
+          string,
+          string,
+          string,
+          string,
+          number
+        ];
+
+        // Encode ERC-20 transfer function call
+        const amountWei = ethers.parseUnits(amount, decimals);
+        const iface = new ethers.Interface(ERC20_ABI);
+        const data = iface.encodeFunctionData('transfer', [toAddress, amountWei]);
+
+        const hash = await walletController.sendTransaction({
+          to: tokenAddress,
+          data,
+          value: '0x0',
+        });
+
+        // Save to transaction history
+        const account = walletController.getCurrentAccount();
+        if (account) {
+          const network = walletController.getNetwork();
+          const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+          const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+          let symbol = 'TOKEN';
+          try {
+            symbol = await contract.symbol();
+          } catch {
+            // Use default
+          }
+
+          const tx: TransactionRecord = {
+            hash,
+            from: account,
+            to: toAddress,
+            value: `${amount} ${symbol}`,
+            timestamp: Date.now(),
+            status: 'pending',
+            type: 'token_transfer',
+            tokenAddress,
+          };
+          await txStorage.addTransaction(account, tx);
+        }
+
+        result = hash;
+        break;
+      }
+
       case 'wallet_removeToken': {
         const [walletAddress, tokenAddress] = params as [string, string];
         await tokenStorage.removeToken(walletAddress, tokenAddress);
@@ -486,10 +536,51 @@ async function requestApproval(
   });
 }
 
-// Keep service worker alive
+// Update pending transaction statuses
+async function updatePendingTransactions() {
+  try {
+    const network = walletController.getNetwork();
+    const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+
+    // Get all wallets to check their transactions
+    const wallets = walletController.getAllAccounts();
+
+    for (const wallet of wallets) {
+      const transactions = await txStorage.getHistory(wallet.address);
+      const pendingTxs = transactions.filter(tx => tx.status === 'pending');
+
+      for (const tx of pendingTxs) {
+        try {
+          const receipt = await provider.getTransactionReceipt(tx.hash);
+
+          if (receipt) {
+            const status = receipt.status === 1 ? 'confirmed' : 'failed';
+            await txStorage.updateTransaction(wallet.address, tx.hash, {
+              status,
+              blockNumber: Number(receipt.blockNumber),
+              gasUsed: receipt.gasUsed.toString(),
+            });
+            console.log(`[QFC] Transaction ${tx.hash.slice(0, 10)}... ${status}`);
+          }
+        } catch (err) {
+          // Transaction not found yet, still pending
+          console.log(`[QFC] Transaction ${tx.hash.slice(0, 10)}... still pending`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[QFC] Failed to update pending transactions:', error);
+  }
+}
+
+// Keep service worker alive and update transactions
 chrome.alarms.create('keepAlive', { periodInMinutes: 1 });
+chrome.alarms.create('updateTransactions', { periodInMinutes: 0.5 }); // Every 30 seconds
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'keepAlive') {
     console.log('[QFC] Service worker heartbeat');
+  } else if (alarm.name === 'updateTransactions') {
+    updatePendingTransactions();
   }
 });

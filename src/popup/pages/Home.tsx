@@ -3,19 +3,23 @@ import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, 
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { NETWORKS, NetworkKey } from '../../utils/constants';
+import { calculateUsdValue } from '../../utils/prices';
 import SendPage from './Send';
+import SendToken from './SendToken';
 import Receive from './Receive';
 import Settings from './Settings';
 import AddToken from './AddToken';
 import ApprovalDialog from '../components/ApprovalDialog';
+import type { Token } from '../../types/token';
 
 type Tab = 'assets' | 'activity';
-type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken';
+type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'sendToken';
 
 export default function Home() {
   const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval } = useWalletStore();
   const [activeTab, setActiveTab] = useState<Tab>('assets');
   const [view, setView] = useState<View>('home');
+  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showNetworkMenu, setShowNetworkMenu] = useState(false);
@@ -53,8 +57,8 @@ export default function Home() {
     setShowNetworkMenu(false);
   };
 
-  // USD value (mock)
-  const usdValue = (parseFloat(balance) * 2.34).toFixed(2);
+  // USD value from price utility
+  const usdValue = calculateUsdValue('QFC', balance);
 
   // Show pending approval dialog
   if (pendingApproval) {
@@ -76,6 +80,23 @@ export default function Home() {
   if (view === 'addToken') {
     return <AddToken onBack={() => setView('home')} />;
   }
+
+  if (view === 'sendToken' && selectedToken) {
+    return (
+      <SendToken
+        token={selectedToken}
+        onBack={() => {
+          setView('home');
+          setSelectedToken(null);
+        }}
+      />
+    );
+  }
+
+  const handleSendToken = (token: Token) => {
+    setSelectedToken(token);
+    setView('sendToken');
+  };
 
   return (
     <div className="w-full h-full bg-gradient-to-br from-qfc-50 to-blue-50 flex flex-col">
@@ -222,8 +243,9 @@ export default function Home() {
                   name={token.name}
                   symbol={token.symbol}
                   balance={token.balance || '0'}
-                  value="0.00"
+                  value={calculateUsdValue(token.symbol, token.balance || '0')}
                   isToken
+                  onSend={() => handleSendToken(token)}
                 />
               ))}
 
@@ -288,15 +310,17 @@ function AssetItem({
   balance,
   value,
   isToken,
+  onSend,
 }: {
   name: string;
   symbol: string;
   balance: string;
   value: string;
   isToken?: boolean;
+  onSend?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer">
+    <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
           isToken ? 'bg-gradient-to-br from-green-400 to-emerald-500' : 'bg-gradient-to-br from-qfc-400 to-blue-400'
@@ -308,9 +332,20 @@ function AssetItem({
           <div className="text-sm text-gray-500">${value}</div>
         </div>
       </div>
-      <div className="text-right">
-        <div className="font-semibold">{balance}</div>
-        <div className="text-sm text-gray-500">{symbol}</div>
+      <div className="flex items-center gap-2">
+        <div className="text-right">
+          <div className="font-semibold">{balance}</div>
+          <div className="text-sm text-gray-500">{symbol}</div>
+        </div>
+        {isToken && onSend && (
+          <button
+            onClick={onSend}
+            className="p-2 text-qfc-600 hover:bg-qfc-100 rounded-lg transition-colors"
+            title={`Send ${symbol}`}
+          >
+            <SendIcon size={16} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -330,23 +365,43 @@ function TransactionItem({
   const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 
+  // Determine display label based on transaction type
+  const getLabel = () => {
+    if (tx.type === 'token_transfer') {
+      return isSent ? 'Token Sent' : 'Token Received';
+    }
+    if (tx.type === 'contract') {
+      return 'Contract Call';
+    }
+    return isSent ? 'Sent' : 'Received';
+  };
+
+  // Format value display (token transfers include symbol in value)
+  const displayValue = tx.type === 'token_transfer' || tx.value.includes(' ')
+    ? tx.value
+    : `${tx.value} QFC`;
+
   return (
     <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+          tx.type === 'contract' ? 'bg-purple-100 text-purple-600' :
           isSent ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
         }`}>
-          {isSent ? '↑' : '↓'}
+          {tx.type === 'contract' ? '⚙' : isSent ? '↑' : '↓'}
         </div>
         <div>
-          <div className="font-medium">{isSent ? 'Sent' : 'Received'}</div>
+          <div className="font-medium">{getLabel()}</div>
           <div className="text-xs text-gray-500">{dateStr} {timeStr}</div>
         </div>
       </div>
       <div className="flex items-center gap-2">
         <div className="text-right">
-          <div className={`font-medium ${isSent ? 'text-red-600' : 'text-green-600'}`}>
-            {isSent ? '-' : '+'}{tx.value} QFC
+          <div className={`font-medium ${
+            tx.type === 'contract' ? 'text-purple-600' :
+            isSent ? 'text-red-600' : 'text-green-600'
+          }`}>
+            {tx.type === 'contract' ? '' : (isSent ? '-' : '+')}{displayValue}
           </div>
           <div className={`text-xs ${
             tx.status === 'confirmed' ? 'text-green-500' :
