@@ -257,6 +257,19 @@ export class WalletController {
     return this.wallets.length > 0;
   }
 
+  async hasWalletsAsync(): Promise<boolean> {
+    // Always check storage directly in case service worker was restarted
+    if (this.wallets.length > 0) {
+      return true;
+    }
+    const wallets = await walletStorage.getWallets();
+    if (wallets.length > 0) {
+      this.wallets = wallets;
+      return true;
+    }
+    return false;
+  }
+
   private startLockTimer(): void {
     this.stopLockTimer();
 

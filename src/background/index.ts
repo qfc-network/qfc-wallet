@@ -15,6 +15,9 @@ let approvalResolvers: Map<string, { resolve: (value: boolean) => void }> = new 
 // Initialize wallet controller
 const walletController = new WalletController(NETWORKS[currentNetworkKey]);
 
+// Initialization promise to ensure we wait for init before handling messages
+let initPromise: Promise<void> | null = null;
+
 // Initialize on service worker start
 async function initialize() {
   await walletController.initialize();
@@ -29,7 +32,16 @@ async function initialize() {
   console.log('[QFC] Background service initialized');
 }
 
-initialize();
+// Ensure initialization is complete
+async function ensureInitialized() {
+  if (!initPromise) {
+    initPromise = initialize();
+  }
+  await initPromise;
+}
+
+// Start initialization immediately
+ensureInitialized();
 
 // Handle messages from popup and content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -72,6 +84,9 @@ async function handleMessage(
   message: { method: string; params?: unknown[]; id?: number; origin?: string },
   sender?: chrome.runtime.MessageSender
 ): Promise<unknown> {
+  // Ensure initialization is complete before handling any message
+  await ensureInitialized();
+
   const { method, params = [], id, origin } = message;
   const senderOrigin = origin || sender?.origin || sender?.url || 'unknown';
 
@@ -267,7 +282,7 @@ async function handleMessage(
       }
 
       case 'wallet_hasWallets': {
-        result = walletController.hasWallets();
+        result = await walletController.hasWalletsAsync();
         break;
       }
 
