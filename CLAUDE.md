@@ -8,7 +8,7 @@ QFC Network 的浏览器插件钱包。
 qfc-wallet/
 ├── src/
 │   ├── background/           # Service Worker 后台服务
-│   │   ├── index.ts         # 入口，消息处理
+│   │   ├── index.ts         # 入口，消息处理，审批流程
 │   │   └── WalletController.ts  # 钱包核心逻辑
 │   │
 │   ├── content/             # Content Script
@@ -20,22 +20,27 @@ qfc-wallet/
 │   ├── popup/               # 弹窗 UI
 │   │   ├── App.tsx
 │   │   ├── store.ts         # Zustand 状态管理
+│   │   ├── components/
+│   │   │   └── ApprovalDialog.tsx  # DApp 连接/交易审批对话框
 │   │   └── pages/
-│   │       ├── Home.tsx
-│   │       ├── Send.tsx
-│   │       ├── Receive.tsx
-│   │       ├── Unlock.tsx
-│   │       └── CreateWallet.tsx
+│   │       ├── Home.tsx         # 主页 (余额、资产、交易历史)
+│   │       ├── Send.tsx         # 发送页面
+│   │       ├── Receive.tsx      # 接收页面 (QR码)
+│   │       ├── Settings.tsx     # 设置页面
+│   │       ├── AddToken.tsx     # 添加 ERC-20 代币
+│   │       ├── Unlock.tsx       # 解锁页面
+│   │       └── CreateWallet.tsx # 创建/导入钱包
 │   │
 │   ├── utils/               # 工具函数
 │   │   ├── constants.ts     # 网络配置
 │   │   ├── crypto.ts        # 加密解密
-│   │   ├── storage.ts       # Chrome 存储
+│   │   ├── storage.ts       # Chrome 存储 (wallet/tx/token/network)
 │   │   └── validation.ts    # 验证函数
 │   │
 │   └── types/               # TypeScript 类型
 │       ├── wallet.ts
-│       ├── transaction.ts
+│       ├── transaction.ts   # 交易记录、审批请求类型
+│       ├── token.ts         # ERC-20 代币类型
 │       └── network.ts
 │
 ├── public/
@@ -83,24 +88,68 @@ npm run lint
 - **样式**: TailwindCSS
 - **状态管理**: Zustand
 - **加密**: ethers.js v6 + crypto-js
+- **QR 码**: qrcode.react
 - **Extension**: Chrome Manifest V3
 
 ## 核心功能
 
 ### EIP-1193 Provider 方法
-- `eth_requestAccounts` - 请求连接
+- `eth_requestAccounts` - 请求连接 (需用户审批)
 - `eth_accounts` - 获取账户
 - `eth_chainId` - 获取链 ID
-- `eth_sendTransaction` - 发送交易
-- `personal_sign` - 签名消息
+- `eth_sendTransaction` - 发送交易 (需用户审批)
+- `personal_sign` - 签名消息 (需用户审批)
 - `eth_signTypedData_v4` - 签名结构化数据
 
 ### 内部方法 (wallet_*)
+
+**钱包管理**
 - `wallet_createWallet` - 创建钱包
 - `wallet_importWallet` - 导入钱包
 - `wallet_unlock` - 解锁
 - `wallet_lock` - 锁定
 - `wallet_getAllAccounts` - 获取所有账户
+- `wallet_switchAccount` - 切换账户
+
+**网络**
+- `wallet_getNetwork` - 获取当前网络
+- `wallet_switchNetwork` - 切换网络 (testnet/mainnet)
+
+**交易历史**
+- `wallet_getTransactions` - 获取交易历史
+
+**ERC-20 代币**
+- `wallet_getTokens` - 获取代币列表
+- `wallet_addToken` - 添加代币
+- `wallet_removeToken` - 移除代币
+- `wallet_refreshTokenBalances` - 刷新代币余额
+
+**DApp 连接**
+- `wallet_getConnectedSites` - 获取已连接站点
+- `wallet_disconnectSite` - 断开站点连接
+- `wallet_getPendingApproval` - 获取待审批请求
+- `wallet_resolveApproval` - 处理审批请求
+
+## 功能特性
+
+### 已实现
+- [x] 钱包创建/导入 (助记词/私钥)
+- [x] 发送/接收 QFC
+- [x] QR 码显示地址
+- [x] 交易历史持久化
+- [x] ERC-20 代币支持
+- [x] 网络切换 (测试网/主网)
+- [x] DApp 连接审批 UI
+- [x] 交易/签名审批 UI
+- [x] 已连接站点管理
+- [x] 30 分钟自动锁定
+
+### 待实现
+- [ ] 代币转账
+- [ ] 代币价格显示
+- [ ] 交易状态更新 (pending → confirmed)
+- [ ] 多语言支持
+- [ ] 硬件钱包集成
 
 ## 安全特性
 
@@ -108,12 +157,27 @@ npm run lint
 - 30 分钟无操作自动锁定
 - 密码永不持久化存储
 - CSP 策略限制脚本来源
+- DApp 连接需用户明确授权
+- 交易/签名需用户确认
 
 ## 网络配置
 
-- **测试网 Chain ID**: 9000 (0x2328)
-- **主网 Chain ID**: 9001 (0x2329)
-- **测试网 RPC**: https://rpc.testnet.qfc.network
+| 网络 | Chain ID | RPC URL |
+|------|----------|---------|
+| 测试网 | 9000 (0x2328) | https://rpc.testnet.qfc.network |
+| 主网 | 9001 (0x2329) | https://rpc.qfc.network |
+
+## 存储结构
+
+```typescript
+// Chrome Storage Keys
+qfc_wallets           // 钱包列表 (加密私钥)
+qfc_current_address   // 当前地址
+qfc_network           // 当前网络 (testnet/mainnet)
+qfc_connected_sites   // 已连接站点 { origin: addresses[] }
+qfc_tx_history_{addr} // 交易历史
+qfc_tokens_{addr}     // 代币列表
+```
 
 ## 设计文档
 
