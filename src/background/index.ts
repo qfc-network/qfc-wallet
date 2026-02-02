@@ -535,6 +535,58 @@ async function handleMessage(
         break;
       }
 
+      case 'wallet_watchAsset': {
+        const [watchParams] = params as [Record<string, unknown>];
+        if (!watchParams || watchParams.type !== 'ERC20' || !watchParams.options) {
+          throw { code: RPC_ERRORS.INVALID_PARAMS.code, message: 'Invalid watchAsset params' };
+        }
+
+        const options = watchParams.options as {
+          address: string;
+          symbol?: string;
+          decimals?: number;
+        };
+
+        const account = walletController.getCurrentAccount();
+        if (!account) {
+          throw new Error('Wallet is locked');
+        }
+
+        const tokenAddress = options.address;
+        if (!tokenAddress) {
+          throw { code: RPC_ERRORS.INVALID_PARAMS.code, message: 'Token address is required' };
+        }
+
+        const network = walletController.getNetwork();
+        const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+        const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+
+        try {
+          const [name, symbol, decimals] = await Promise.all([
+            contract.name(),
+            contract.symbol(),
+            contract.decimals(),
+          ]);
+
+          const balance = await contract.balanceOf(account);
+          const formattedBalance = ethers.formatUnits(balance, decimals);
+
+          const token: Token = {
+            address: tokenAddress,
+            name,
+            symbol: options.symbol || symbol,
+            decimals: Number(options.decimals ?? decimals),
+            balance: formattedBalance,
+          };
+
+          await tokenStorage.addToken(account, token);
+          result = true;
+        } catch {
+          throw new Error('Invalid token contract');
+        }
+        break;
+      }
+
       case 'wallet_sendToken': {
         const [
           _fromAddress,
