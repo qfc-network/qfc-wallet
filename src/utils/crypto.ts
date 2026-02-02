@@ -3,16 +3,24 @@ import CryptoJS from 'crypto-js';
 /**
  * Encrypt text using AES
  */
-export function encrypt(text: string, password: string): string {
-  const salt = CryptoJS.lib.WordArray.random(16);
-  const iv = CryptoJS.lib.WordArray.random(16);
-  const key = CryptoJS.PBKDF2(password, salt, {
+const DEFAULT_KDF_ITERATIONS = 150000;
+const SALT_BYTES = 16;
+const IV_BYTES = 16;
+
+function deriveKey(password: string, salt: CryptoJS.lib.WordArray, iterations: number) {
+  return CryptoJS.PBKDF2(password, salt, {
     keySize: 256 / 32,
-    iterations: 100000,
+    iterations,
     hasher: CryptoJS.algo.SHA256,
   });
+}
+
+export function encrypt(text: string, password: string, iterations: number = DEFAULT_KDF_ITERATIONS): string {
+  const salt = CryptoJS.lib.WordArray.random(SALT_BYTES);
+  const iv = CryptoJS.lib.WordArray.random(IV_BYTES);
+  const key = deriveKey(password, salt, iterations);
   const ciphertext = CryptoJS.AES.encrypt(text, key, { iv }).toString();
-  return `v2:${salt.toString(CryptoJS.enc.Base64)}:${iv.toString(
+  return `v3:${iterations}:${salt.toString(CryptoJS.enc.Base64)}:${iv.toString(
     CryptoJS.enc.Base64
   )}:${ciphertext}`;
 }
@@ -23,18 +31,28 @@ export function encrypt(text: string, password: string): string {
 export function decrypt(ciphertext: string, password: string): string {
   let decrypted = '';
 
-  if (ciphertext.startsWith('v2:')) {
+  if (ciphertext.startsWith('v3:')) {
+    const parts = ciphertext.split(':');
+    if (parts.length !== 5) {
+      throw new Error('Decryption failed - invalid data');
+    }
+    const iterations = Number(parts[1]);
+    if (!Number.isFinite(iterations) || iterations <= 0) {
+      throw new Error('Decryption failed - invalid data');
+    }
+    const salt = CryptoJS.enc.Base64.parse(parts[2]);
+    const iv = CryptoJS.enc.Base64.parse(parts[3]);
+    const key = deriveKey(password, salt, iterations);
+    const bytes = CryptoJS.AES.decrypt(parts[4], key, { iv });
+    decrypted = bytes.toString(CryptoJS.enc.Utf8);
+  } else if (ciphertext.startsWith('v2:')) {
     const parts = ciphertext.split(':');
     if (parts.length !== 4) {
       throw new Error('Decryption failed - invalid data');
     }
     const salt = CryptoJS.enc.Base64.parse(parts[1]);
     const iv = CryptoJS.enc.Base64.parse(parts[2]);
-    const key = CryptoJS.PBKDF2(password, salt, {
-      keySize: 256 / 32,
-      iterations: 100000,
-      hasher: CryptoJS.algo.SHA256,
-    });
+    const key = deriveKey(password, salt, 100000);
     const bytes = CryptoJS.AES.decrypt(parts[3], key, { iv });
     decrypted = bytes.toString(CryptoJS.enc.Utf8);
   } else {
@@ -47,6 +65,10 @@ export function decrypt(ciphertext: string, password: string): string {
   }
 
   return decrypted;
+}
+
+export function isLegacyCiphertext(ciphertext: string): boolean {
+  return !ciphertext.startsWith('v3:');
 }
 
 /**

@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { encrypt, decrypt } from '../utils/crypto';
+import { encrypt, decrypt, isLegacyCiphertext } from '../utils/crypto';
 import { walletStorage } from '../utils/storage';
 import { DEFAULT_NETWORK, LOCK_TIMEOUT_MS } from '../utils/constants';
 import type { Wallet, CreateWalletResult, NetworkConfig } from '../types/wallet';
@@ -31,6 +31,8 @@ export class WalletController {
     } else if (wallets.length > 0) {
       this.currentWallet = wallets[0];
     }
+
+    await this.migrateEncryptionIfNeeded();
   }
 
   private async saveWallets(): Promise<void> {
@@ -136,6 +138,7 @@ export class WalletController {
 
       this.startLockTimer();
       this.touchActivity();
+      await this.migrateEncryptionIfNeeded(password);
       return true;
     } catch {
       return false;
@@ -260,7 +263,12 @@ export class WalletController {
     const wallet = this.wallets.find((w) => w.address === targetAddress);
     if (!wallet) throw new Error('Wallet not found');
 
-    return decrypt(wallet.encryptedPrivateKey, password);
+    const key = decrypt(wallet.encryptedPrivateKey, password);
+    if (isLegacyCiphertext(wallet.encryptedPrivateKey)) {
+      wallet.encryptedPrivateKey = encrypt(key, password);
+      await this.saveWallets();
+    }
+    return key;
   }
 
   async exportMnemonic(password: string, address?: string): Promise<string> {
@@ -271,7 +279,35 @@ export class WalletController {
     if (!wallet) throw new Error('Wallet not found');
     if (!wallet.encryptedMnemonic) throw new Error('No recovery phrase available');
 
-    return decrypt(wallet.encryptedMnemonic, password);
+    const phrase = decrypt(wallet.encryptedMnemonic, password);
+    if (wallet.encryptedMnemonic && isLegacyCiphertext(wallet.encryptedMnemonic)) {
+      wallet.encryptedMnemonic = encrypt(phrase, password);
+      await this.saveWallets();
+    }
+    return phrase;
+  }
+
+  private async migrateEncryptionIfNeeded(password?: string): Promise<void> {
+    if (this.wallets.length === 0) return;
+    if (!password) return;
+
+    let changed = false;
+    for (const wallet of this.wallets) {
+      if (isLegacyCiphertext(wallet.encryptedPrivateKey)) {
+        const key = decrypt(wallet.encryptedPrivateKey, password);
+        wallet.encryptedPrivateKey = encrypt(key, password);
+        changed = true;
+      }
+      if (wallet.encryptedMnemonic && isLegacyCiphertext(wallet.encryptedMnemonic)) {
+        const phrase = decrypt(wallet.encryptedMnemonic, password);
+        wallet.encryptedMnemonic = encrypt(phrase, password);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await this.saveWallets();
+    }
   }
 
   async getBlockNumber(): Promise<number> {
