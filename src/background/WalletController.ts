@@ -174,11 +174,11 @@ export class WalletController {
     }));
   }
 
-  async getBalance(address?: string): Promise<string> {
+  async getBalance(address?: string, blockTag?: ethers.BlockTag): Promise<string> {
     const addr = address || this.currentWallet?.address;
     if (!addr) throw new Error('No address');
 
-    const balance = await this.provider.getBalance(addr);
+    const balance = await this.provider.getBalance(addr, blockTag);
     return ethers.formatEther(balance);
   }
 
@@ -249,11 +249,11 @@ export class WalletController {
     return (feeData.gasPrice ?? 0n).toString();
   }
 
-  async getTransactionCount(address?: string): Promise<number> {
+  async getTransactionCount(address?: string, blockTag?: ethers.BlockTag): Promise<number> {
     const addr = address || this.currentWallet?.address;
     if (!addr) throw new Error('No address');
 
-    return this.provider.getTransactionCount(addr);
+    return this.provider.getTransactionCount(addr, blockTag);
   }
 
   async exportPrivateKey(password: string, address?: string): Promise<string> {

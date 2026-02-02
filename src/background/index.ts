@@ -173,15 +173,15 @@ async function handleMessage(
 
       // Balance and nonce
       case 'eth_getBalance': {
-        const [address] = params as [string];
-        const balance = await walletController.getBalance(address);
+        const [address, blockTag] = params as [string, string?];
+        const balance = await walletController.getBalance(address, blockTag as ethers.BlockTag);
         result = '0x' + BigInt(Math.floor(parseFloat(balance) * 1e18)).toString(16);
         break;
       }
 
       case 'eth_getTransactionCount': {
-        const [address] = params as [string];
-        const count = await walletController.getTransactionCount(address);
+        const [address, blockTag] = params as [string, string?];
+        const count = await walletController.getTransactionCount(address, blockTag as ethers.BlockTag);
         result = '0x' + count.toString(16);
         break;
       }
