@@ -3,7 +3,7 @@ import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, 
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { NetworkKey } from '../../utils/constants';
-import { calculateUsdValue } from '../../utils/prices';
+import { calculateUsdValue, refreshPrices } from '../../utils/prices';
 import { useTranslation } from '../../i18n';
 import SendPage from './Send';
 import SendToken from './SendToken';
@@ -28,6 +28,7 @@ export default function Home() {
   const [showNetworkMenu, setShowNetworkMenu] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
+  const [, setPriceTick] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -36,6 +37,27 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const symbols = ['QFC', ...tokens.map((token) => token.symbol)];
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        await refreshPrices(symbols);
+        if (mounted) setPriceTick((v) => v + 1);
+      } catch {
+        // ignore price fetch errors
+      }
+    };
+
+    load();
+    const interval = setInterval(load, 60000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [tokens]);
 
   const copyAddress = async () => {
     if (currentAddress) {
