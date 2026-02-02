@@ -45,10 +45,14 @@ export class WalletController {
   ): Promise<CreateWalletResult> {
     const wallet = ethers.Wallet.createRandom();
     const encryptedPrivateKey = encrypt(wallet.privateKey, password);
+    const encryptedMnemonic = wallet.mnemonic?.phrase
+      ? encrypt(wallet.mnemonic.phrase, password)
+      : undefined;
 
     const newWallet: Wallet = {
       address: wallet.address,
       encryptedPrivateKey,
+      encryptedMnemonic,
       name: name || `Account ${this.wallets.length + 1}`,
       createdAt: Date.now(),
     };
@@ -73,10 +77,13 @@ export class WalletController {
     password: string
   ): Promise<string> {
     let wallet: ethers.HDNodeWallet | ethers.Wallet;
+    let encryptedMnemonic: string | undefined;
 
     // Determine if it's a mnemonic or private key
     if (privateKeyOrMnemonic.trim().split(/\s+/).length >= 12) {
-      wallet = ethers.Wallet.fromPhrase(privateKeyOrMnemonic.trim());
+      const phrase = privateKeyOrMnemonic.trim();
+      wallet = ethers.Wallet.fromPhrase(phrase);
+      encryptedMnemonic = encrypt(phrase, password);
     } else {
       const key = privateKeyOrMnemonic.startsWith('0x')
         ? privateKeyOrMnemonic
@@ -94,6 +101,7 @@ export class WalletController {
     const newWallet: Wallet = {
       address: wallet.address,
       encryptedPrivateKey,
+      encryptedMnemonic,
       name: name || `Imported ${this.wallets.length + 1}`,
       createdAt: Date.now(),
     };
@@ -248,6 +256,17 @@ export class WalletController {
     if (!wallet) throw new Error('Wallet not found');
 
     return decrypt(wallet.encryptedPrivateKey, password);
+  }
+
+  async exportMnemonic(password: string, address?: string): Promise<string> {
+    const targetAddress = address || this.currentWallet?.address;
+    if (!targetAddress) throw new Error('No address');
+
+    const wallet = this.wallets.find((w) => w.address === targetAddress);
+    if (!wallet) throw new Error('Wallet not found');
+    if (!wallet.encryptedMnemonic) throw new Error('No recovery phrase available');
+
+    return decrypt(wallet.encryptedMnemonic, password);
   }
 
   async getBlockNumber(): Promise<number> {

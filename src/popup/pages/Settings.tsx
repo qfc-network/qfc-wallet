@@ -7,6 +7,7 @@ import type { Language } from '../../i18n';
 import AddressBook from './AddressBook';
 import CreateAccountDialog from '../components/CreateAccountDialog';
 import ExportPrivateKeyDialog from '../components/ExportPrivateKeyDialog';
+import ExportMnemonicDialog from '../components/ExportMnemonicDialog';
 
 interface SettingsProps {
   onBack: () => void;
@@ -21,6 +22,7 @@ export default function Settings({ onBack }: SettingsProps) {
   const [showAddressBook, setShowAddressBook] = useState(false);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [showExportPrivateKey, setShowExportPrivateKey] = useState(false);
+  const [showExportMnemonic, setShowExportMnemonic] = useState(false);
 
   const loadConnectedSites = async () => {
     try {
@@ -63,6 +65,11 @@ export default function Settings({ onBack }: SettingsProps) {
       <ExportPrivateKeyDialog
         open={showExportPrivateKey}
         onClose={() => setShowExportPrivateKey(false)}
+        address={currentAddress}
+      />
+      <ExportMnemonicDialog
+        open={showExportMnemonic}
+        onClose={() => setShowExportMnemonic(false)}
         address={currentAddress}
       />
       {/* Header */}
@@ -200,13 +207,22 @@ export default function Settings({ onBack }: SettingsProps) {
         {/* Security */}
         <div className="bg-white rounded-xl p-4">
           <h2 className="font-semibold text-gray-800 mb-3">{t.settings.security}</h2>
-          <button
-            onClick={() => setShowExportPrivateKey(true)}
-            className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <span>{t.settings.exportPrivateKey}</span>
-            <ChevronRight size={18} className="text-gray-500" />
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={() => setShowExportPrivateKey(true)}
+              className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <span>{t.settings.exportPrivateKey}</span>
+              <ChevronRight size={18} className="text-gray-500" />
+            </button>
+            <button
+              onClick={() => setShowExportMnemonic(true)}
+              className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <span>{t.settings.exportMnemonic}</span>
+              <ChevronRight size={18} className="text-gray-500" />
+            </button>
+          </div>
         </div>
 
         {/* Connected Sites */}

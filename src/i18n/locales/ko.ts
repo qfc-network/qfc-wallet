@@ -91,6 +91,9 @@ export const ko: Translations = {
     password: '비밀번호',
     reveal: '표시',
     privateKey: '개인 키',
+    exportMnemonic: '복구 구문 내보내기',
+    mnemonicWarning: '복구 구문을 공유하지 마세요. 자산이 위험해질 수 있습니다.',
+    mnemonic: '복구 구문',
   },
   createWallet: {
     title: 'QFC 지갑에 오신 것을 환영합니다',

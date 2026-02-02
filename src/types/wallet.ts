@@ -1,6 +1,7 @@
 export interface Wallet {
   address: string;
   encryptedPrivateKey: string;
+  encryptedMnemonic?: string;
   name: string;
   createdAt: number;
 }

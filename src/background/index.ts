@@ -410,6 +410,12 @@ async function handleMessage(
         break;
       }
 
+      case 'wallet_exportMnemonic': {
+        const [password, address] = params as [string, string | undefined];
+        result = await walletController.exportMnemonic(password, address);
+        break;
+      }
+
       case 'wallet_isUnlocked': {
         result = walletController.isWalletUnlocked();
         break;

@@ -100,6 +100,9 @@ export interface Translations {
     password: string;
     reveal: string;
     privateKey: string;
+    exportMnemonic: string;
+    mnemonicWarning: string;
+    mnemonic: string;
   };
   createWallet: {
     title: string;

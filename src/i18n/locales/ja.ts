@@ -91,6 +91,9 @@ export const ja: Translations = {
     password: 'パスワード',
     reveal: '表示',
     privateKey: '秘密鍵',
+    exportMnemonic: 'リカバリーフレーズをエクスポート',
+    mnemonicWarning: 'リカバリーフレーズは絶対に共有しないでください。',
+    mnemonic: 'リカバリーフレーズ',
   },
   createWallet: {
     title: 'QFCウォレットへようこそ',

@@ -91,6 +91,9 @@ export const zh: Translations = {
     password: '密码',
     reveal: '显示',
     privateKey: '私钥',
+    exportMnemonic: '导出助记词',
+    mnemonicWarning: '请勿分享助记词，任何人拿到助记词都可转走资产。',
+    mnemonic: '助记词',
   },
   createWallet: {
     title: '欢迎使用 QFC 钱包',

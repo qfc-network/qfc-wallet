@@ -47,6 +47,7 @@ export const storage = {
 interface WalletData {
   address: string;
   encryptedPrivateKey: string;
+  encryptedMnemonic?: string;
   name: string;
   createdAt: number;
 }

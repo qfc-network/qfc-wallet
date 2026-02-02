@@ -91,6 +91,9 @@ export const en: Translations = {
     password: 'Password',
     reveal: 'Reveal',
     privateKey: 'Private Key',
+    exportMnemonic: 'Export Recovery Phrase',
+    mnemonicWarning: 'Never share your recovery phrase. Anyone with it can take your funds.',
+    mnemonic: 'Recovery Phrase',
   },
   createWallet: {
     title: 'Welcome to QFC Wallet',
