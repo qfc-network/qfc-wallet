@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, AlertCircle } from 'lucide-react';
 import { useWalletStore, sendMessage } from '../store';
 import { isValidAddress } from '../../utils/validation';
@@ -16,6 +16,76 @@ export default function Send({ onBack }: SendProps) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [txHash, setTxHash] = useState('');
+  const [isEstimating, setIsEstimating] = useState(false);
+  const [estimatedGasLimit, setEstimatedGasLimit] = useState<bigint | null>(null);
+  const [estimatedGasPriceWei, setEstimatedGasPriceWei] = useState<bigint | null>(null);
+  const [showFeeOptions, setShowFeeOptions] = useState(false);
+  const [customGasLimit, setCustomGasLimit] = useState('');
+  const [customGasPrice, setCustomGasPrice] = useState('');
+
+  const amountNum = useMemo(() => parseFloat(amount), [amount]);
+  const amountValid = !isNaN(amountNum) && amountNum > 0;
+  const recipientValid = isValidAddress(recipient);
+
+  useEffect(() => {
+    if (!recipientValid || !amountValid || !currentAddress) {
+      setEstimatedGasLimit(null);
+      return;
+    }
+
+    const estimate = async () => {
+      setIsEstimating(true);
+      try {
+        const valueWei = BigInt(Math.floor(amountNum * 1e18));
+        const [gasLimitHex, gasPriceHex] = await Promise.all([
+          sendMessage<string>('eth_estimateGas', [
+            { from: currentAddress, to: recipient, value: '0x' + valueWei.toString(16) },
+          ]),
+          sendMessage<string>('eth_gasPrice'),
+        ]);
+
+        setEstimatedGasLimit(BigInt(gasLimitHex));
+        setEstimatedGasPriceWei(BigInt(gasPriceHex));
+      } catch (err) {
+        console.error('Failed to estimate gas:', err);
+      } finally {
+        setIsEstimating(false);
+      }
+    };
+
+    estimate();
+  }, [recipientValid, amountValid, amountNum, recipient, currentAddress]);
+
+  const parseGasLimit = (value: string): bigint | null => {
+    if (!value.trim()) return null;
+    try {
+      return BigInt(value);
+    } catch {
+      return null;
+    }
+  };
+
+  const parseGasPriceWei = (value: string): bigint | null => {
+    if (!value.trim()) return null;
+    const num = parseFloat(value);
+    if (isNaN(num) || num <= 0) return null;
+    return BigInt(Math.floor(num * 1e9));
+  };
+
+  const gasLimit = parseGasLimit(customGasLimit) ?? estimatedGasLimit;
+  const gasPriceWei = parseGasPriceWei(customGasPrice) ?? estimatedGasPriceWei;
+
+  const feeQfc = useMemo(() => {
+    if (!gasLimit || !gasPriceWei) return null;
+    const feeWei = gasLimit * gasPriceWei;
+    const fee = Number(feeWei) / 1e18;
+    return fee.toFixed(6);
+  }, [gasLimit, gasPriceWei]);
+
+  const gasPriceGwei = useMemo(() => {
+    if (!gasPriceWei) return null;
+    return (Number(gasPriceWei) / 1e9).toFixed(2);
+  }, [gasPriceWei]);
 
   const handleSend = async () => {
     setError('');
@@ -27,8 +97,7 @@ export default function Send({ onBack }: SendProps) {
     }
 
     // Validate amount
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
+    if (!amountValid) {
       setError(t.send.invalidAmount);
       return;
     }
@@ -40,15 +109,27 @@ export default function Send({ onBack }: SendProps) {
 
     setIsLoading(true);
     try {
+      if (!currentAddress) {
+        setError(t.common.error);
+        return;
+      }
       // Convert amount to wei
       const valueWei = BigInt(Math.floor(amountNum * 1e18));
+      const tx: Record<string, string> = {
+        from: currentAddress || '',
+        to: recipient,
+        value: '0x' + valueWei.toString(16),
+      };
+
+      if (gasLimit) {
+        tx.gas = '0x' + gasLimit.toString(16);
+      }
+      if (gasPriceWei) {
+        tx.gasPrice = '0x' + gasPriceWei.toString(16);
+      }
 
       const hash = await sendMessage<string>('eth_sendTransaction', [
-        {
-          from: currentAddress,
-          to: recipient,
-          value: '0x' + valueWei.toString(16),
-        },
+        tx,
       ]);
 
       setTxHash(hash);
@@ -177,15 +258,62 @@ export default function Send({ onBack }: SendProps) {
               <span>{amount} QFC</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">{t.send.estimatedGas}</span>
-              <span>~0.001 QFC</span>
+              <span className="text-gray-500">{t.send.networkFee}</span>
+              <span>{feeQfc ? `~${feeQfc} QFC` : isEstimating ? t.common.loading : '-'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">{t.send.gasPrice}</span>
+              <span>{gasPriceGwei ? `${gasPriceGwei} Gwei` : '-'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">{t.send.gasLimit}</span>
+              <span>{gasLimit ? gasLimit.toString() : '-'}</span>
             </div>
             <div className="border-t pt-2 flex justify-between font-medium">
               <span>Total</span>
-              <span>{(parseFloat(amount) + 0.001).toFixed(4)} QFC</span>
+              <span>{feeQfc ? (parseFloat(amount) + parseFloat(feeQfc)).toFixed(4) : `${amount} QFC`}</span>
             </div>
           </div>
         )}
+
+        <div className="bg-white rounded-xl p-4 space-y-3">
+          <button
+            onClick={() => setShowFeeOptions(!showFeeOptions)}
+            className="text-sm text-qfc-600 hover:underline"
+          >
+            {t.send.customizeFee}
+          </button>
+          {showFeeOptions && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.send.gasPrice}
+                </label>
+                <input
+                  type="number"
+                  value={customGasPrice}
+                  onChange={(e) => setCustomGasPrice(e.target.value)}
+                  placeholder={estimatedGasPriceWei ? (Number(estimatedGasPriceWei) / 1e9).toFixed(2) : '0'}
+                  step="0.1"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t.send.gasLimit}
+                </label>
+                <input
+                  type="number"
+                  value={customGasLimit}
+                  onChange={(e) => setCustomGasLimit(e.target.value)}
+                  placeholder={estimatedGasLimit ? estimatedGasLimit.toString() : '21000'}
+                  step="1"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Send Button */}

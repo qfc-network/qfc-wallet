@@ -26,6 +26,7 @@ export const ja: Translations = {
     view: '表示',
     disconnect: '切断',
     active: 'アクティブ',
+    switch: '切り替え',
     version: 'バージョン',
   },
   home: {
@@ -48,6 +49,10 @@ export const ja: Translations = {
     amountPlaceholder: '0.0',
     max: '最大',
     estimatedGas: '推定ガス',
+    networkFee: 'ネットワーク手数料',
+    gasPrice: 'ガス価格 (Gwei)',
+    gasLimit: 'ガス上限',
+    customizeFee: '手数料をカスタム',
     sendButton: '送金',
     sending: '送金中...',
     invalidAddress: '無効なアドレス',

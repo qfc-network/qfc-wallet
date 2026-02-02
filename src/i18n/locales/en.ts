@@ -26,6 +26,7 @@ export const en: Translations = {
     view: 'View',
     disconnect: 'Disconnect',
     active: 'Active',
+    switch: 'Switch',
     version: 'Version',
   },
   home: {
@@ -48,6 +49,10 @@ export const en: Translations = {
     amountPlaceholder: '0.0',
     max: 'MAX',
     estimatedGas: 'Estimated Gas',
+    networkFee: 'Network Fee',
+    gasPrice: 'Gas Price (Gwei)',
+    gasLimit: 'Gas Limit',
+    customizeFee: 'Customize fee',
     sendButton: 'Send',
     sending: 'Sending...',
     invalidAddress: 'Invalid address',

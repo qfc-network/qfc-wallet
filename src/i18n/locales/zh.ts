@@ -26,6 +26,7 @@ export const zh: Translations = {
     view: '查看',
     disconnect: '断开连接',
     active: '当前',
+    switch: '切换',
     version: '版本',
   },
   home: {
@@ -48,6 +49,10 @@ export const zh: Translations = {
     amountPlaceholder: '0.0',
     max: '最大',
     estimatedGas: '预估 Gas',
+    networkFee: '网络费用',
+    gasPrice: 'Gas 价格 (Gwei)',
+    gasLimit: 'Gas 上限',
+    customizeFee: '自定义费用',
     sendButton: '发送',
     sending: '发送中...',
     invalidAddress: '无效地址',

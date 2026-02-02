@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink } from 'lucide-react';
+import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink, User } from 'lucide-react';
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { NETWORKS, NetworkKey } from '../../utils/constants';
@@ -11,13 +11,14 @@ import Receive from './Receive';
 import Settings from './Settings';
 import AddToken from './AddToken';
 import ApprovalDialog from '../components/ApprovalDialog';
+import CreateAccountDialog from '../components/CreateAccountDialog';
 import type { Token } from '../../types/token';
 
 type Tab = 'assets' | 'activity';
 type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'sendToken';
 
 export default function Home() {
-  const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval } = useWalletStore();
+  const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval, wallets } = useWalletStore();
   const t = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('assets');
   const [view, setView] = useState<View>('home');
@@ -25,6 +26,8 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showNetworkMenu, setShowNetworkMenu] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showCreateAccount, setShowCreateAccount] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -100,8 +103,14 @@ export default function Home() {
     setView('sendToken');
   };
 
+  const currentWallet = wallets.find((wallet) => wallet.address === currentAddress);
+
   return (
     <div className="w-full h-full bg-gradient-to-br from-qfc-50 to-blue-50 flex flex-col">
+      <CreateAccountDialog
+        open={showCreateAccount}
+        onClose={() => setShowCreateAccount(false)}
+      />
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-2">
@@ -109,6 +118,58 @@ export default function Home() {
           <span className="font-bold text-lg">QFC {t.common.wallet}</span>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <button
+              onClick={() => setShowAccountMenu(!showAccountMenu)}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/50 text-sm"
+              title={currentWallet?.name || t.settings.account}
+            >
+              <User size={16} />
+              <span className="max-w-[80px] truncate">{currentWallet?.name || formatAddress(currentAddress || '', 4)}</span>
+              <ChevronDown size={14} />
+            </button>
+            {showAccountMenu && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-10">
+                {wallets.map((wallet) => {
+                  const isActive = wallet.address === currentAddress;
+                  return (
+                    <button
+                      key={wallet.address}
+                      onClick={() => {
+                        if (!isActive) {
+                          walletActions.switchAccount(wallet.address);
+                        }
+                        setShowAccountMenu(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm flex items-center justify-between hover:bg-gray-50 ${
+                        isActive ? 'text-qfc-600 font-medium' : 'text-gray-700'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-medium">{wallet.name}</div>
+                        <div className="text-xs text-gray-500">{formatAddress(wallet.address, 6)}</div>
+                      </div>
+                      {isActive && (
+                        <span className="text-[10px] bg-qfc-100 text-qfc-700 px-2 py-0.5 rounded-full">
+                          {t.common.active}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                <div className="border-t my-1" />
+                <button
+                  onClick={() => {
+                    setShowAccountMenu(false);
+                    setShowCreateAccount(true);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-qfc-600 hover:bg-qfc-50"
+                >
+                  {t.createWallet.createNew}
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={handleRefresh}
             className="p-2 hover:bg-white/50 rounded-lg"

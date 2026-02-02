@@ -152,6 +152,35 @@ export const walletActions = {
     }
   },
 
+  async createAccount(name: string, password: string) {
+    const store = useWalletStore.getState();
+    store.setLoading(true);
+    store.setError(null);
+
+    try {
+      const result = await sendMessage<{ address: string; mnemonic: string }>(
+        'wallet_createWallet',
+        [name, password]
+      );
+
+      store.setCurrentAddress(result.address);
+      store.setUnlocked(true);
+
+      const wallets = await sendMessage<Wallet[]>('wallet_getAllAccounts');
+      store.setWallets(wallets);
+      await walletActions.refreshBalance(result.address);
+      await walletActions.loadTransactions(result.address);
+      await walletActions.loadTokens(result.address);
+
+      return result;
+    } catch (error) {
+      store.setError(error instanceof Error ? error.message : 'Failed to create account');
+      throw error;
+    } finally {
+      store.setLoading(false);
+    }
+  },
+
   async importWallet(keyOrMnemonic: string, name: string, password: string) {
     const store = useWalletStore.getState();
     store.setLoading(true);

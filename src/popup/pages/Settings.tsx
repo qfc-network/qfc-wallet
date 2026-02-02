@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ChevronLeft, Trash2, ExternalLink, Globe, ChevronDown, ChevronRight, BookUser } from 'lucide-react';
-import { useWalletStore, sendMessage } from '../store';
+import { ChevronLeft, Trash2, ExternalLink, Globe, ChevronDown, ChevronRight, BookUser, Plus } from 'lucide-react';
+import { useWalletStore, sendMessage, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { useI18n, LANGUAGES } from '../../i18n';
 import type { Language } from '../../i18n';
 import AddressBook from './AddressBook';
+import CreateAccountDialog from '../components/CreateAccountDialog';
 
 interface SettingsProps {
   onBack: () => void;
@@ -17,6 +18,7 @@ export default function Settings({ onBack }: SettingsProps) {
   const [showSites, setShowSites] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showAddressBook, setShowAddressBook] = useState(false);
+  const [showCreateAccount, setShowCreateAccount] = useState(false);
 
   const loadConnectedSites = async () => {
     try {
@@ -52,6 +54,10 @@ export default function Settings({ onBack }: SettingsProps) {
 
   return (
     <div className="w-full h-full bg-gradient-to-br from-qfc-50 to-blue-50 flex flex-col">
+      <CreateAccountDialog
+        open={showCreateAccount}
+        onClose={() => setShowCreateAccount(false)}
+      />
       {/* Header */}
       <div className="p-4 flex items-center gap-3">
         <button
@@ -67,7 +73,16 @@ export default function Settings({ onBack }: SettingsProps) {
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
         {/* Account Info */}
         <div className="bg-white rounded-xl p-4">
-          <h2 className="font-semibold text-gray-800 mb-3">{t.settings.account}</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-gray-800">{t.settings.account}</h2>
+            <button
+              onClick={() => setShowCreateAccount(true)}
+              className="flex items-center gap-1 text-sm text-qfc-600 hover:underline"
+            >
+              <Plus size={16} />
+              {t.createWallet.createNew}
+            </button>
+          </div>
           <div className="space-y-2">
             {wallets.map((wallet) => (
               <div
@@ -82,10 +97,17 @@ export default function Settings({ onBack }: SettingsProps) {
                     {formatAddress(wallet.address, 8)}
                   </div>
                 </div>
-                {wallet.address === currentAddress && (
+                {wallet.address === currentAddress ? (
                   <span className="text-xs bg-qfc-100 text-qfc-700 px-2 py-1 rounded-full">
                     {t.common.active}
                   </span>
+                ) : (
+                  <button
+                    onClick={() => walletActions.switchAccount(wallet.address)}
+                    className="text-xs text-qfc-600 hover:underline"
+                  >
+                    {t.common.switch}
+                  </button>
                 )}
               </div>
             ))}

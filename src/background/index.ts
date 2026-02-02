@@ -400,12 +400,22 @@ async function handleMessage(
       }
 
       case 'wallet_sendToken': {
-        const [_fromAddress, tokenAddress, toAddress, amount, decimals] = params as [
+        const [
+          _fromAddress,
+          tokenAddress,
+          toAddress,
+          amount,
+          decimals,
+          gasLimit,
+          gasPrice,
+        ] = params as [
           string,
           string,
           string,
           string,
-          number
+          number,
+          string | null,
+          string | null
         ];
 
         // Encode ERC-20 transfer function call
@@ -413,11 +423,19 @@ async function handleMessage(
         const iface = new ethers.Interface(ERC20_ABI);
         const data = iface.encodeFunctionData('transfer', [toAddress, amountWei]);
 
-        const hash = await walletController.sendTransaction({
+        const tx: ethers.TransactionRequest = {
           to: tokenAddress,
           data,
           value: '0x0',
-        });
+        };
+        if (gasLimit) {
+          tx.gasLimit = gasLimit;
+        }
+        if (gasPrice) {
+          tx.gasPrice = gasPrice;
+        }
+
+        const hash = await walletController.sendTransaction(tx);
 
         // Save to transaction history
         const account = walletController.getCurrentAccount();

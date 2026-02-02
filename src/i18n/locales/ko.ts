@@ -26,6 +26,7 @@ export const ko: Translations = {
     view: '보기',
     disconnect: '연결 해제',
     active: '활성',
+    switch: '전환',
     version: '버전',
   },
   home: {
@@ -48,6 +49,10 @@ export const ko: Translations = {
     amountPlaceholder: '0.0',
     max: '최대',
     estimatedGas: '예상 가스',
+    networkFee: '네트워크 수수료',
+    gasPrice: '가스 가격 (Gwei)',
+    gasLimit: '가스 한도',
+    customizeFee: '수수료 사용자 지정',
     sendButton: '보내기',
     sending: '전송 중...',
     invalidAddress: '잘못된 주소',

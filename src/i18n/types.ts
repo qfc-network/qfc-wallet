@@ -35,6 +35,7 @@ export interface Translations {
     view: string;
     disconnect: string;
     active: string;
+    switch: string;
     version: string;
   };
   home: {
@@ -57,6 +58,10 @@ export interface Translations {
     amountPlaceholder: string;
     max: string;
     estimatedGas: string;
+    networkFee: string;
+    gasPrice: string;
+    gasLimit: string;
+    customizeFee: string;
     sendButton: string;
     sending: string;
     invalidAddress: string;
