@@ -240,7 +240,7 @@ export default function Settings({ onBack }: SettingsProps) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">{t.common.version}</span>
-              <span>1.0.0</span>
+              <span>1.0.1</span>
             </div>
             <a
               href="https://qfc.network"
