@@ -195,6 +195,19 @@ export const networkStorage = {
   async setCurrentNetwork(network: string): Promise<void> {
     await storage.set(STORAGE_KEYS.NETWORK, network);
   },
+
+  async getCustomNetworks(): Promise<Record<string, import('../types/wallet').NetworkConfig>> {
+    return (await storage.get<Record<string, import('../types/wallet').NetworkConfig>>(STORAGE_KEYS.CUSTOM_NETWORKS)) ?? {};
+  },
+
+  async addCustomNetwork(
+    key: string,
+    network: import('../types/wallet').NetworkConfig
+  ): Promise<void> {
+    const networks = await this.getCustomNetworks();
+    networks[key] = network;
+    await storage.set(STORAGE_KEYS.CUSTOM_NETWORKS, networks);
+  },
 };
 
 /**

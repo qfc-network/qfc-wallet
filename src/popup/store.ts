@@ -13,6 +13,7 @@ interface WalletStore {
   balance: string;
   network: NetworkConfig;
   networkKey: NetworkKey;
+  networks: Record<string, NetworkConfig>;
   error: string | null;
   transactions: TransactionRecord[];
   tokens: Token[];
@@ -25,6 +26,7 @@ interface WalletStore {
   setLoading: (loading: boolean) => void;
   setBalance: (balance: string) => void;
   setNetwork: (network: NetworkConfig, key: NetworkKey) => void;
+  setNetworks: (networks: Record<string, NetworkConfig>) => void;
   setError: (error: string | null) => void;
   setTransactions: (transactions: TransactionRecord[]) => void;
   setTokens: (tokens: Token[]) => void;
@@ -40,6 +42,7 @@ const initialState = {
   balance: '0',
   network: NETWORKS.testnet,
   networkKey: 'testnet' as NetworkKey,
+  networks: NETWORKS,
   error: null as string | null,
   transactions: [] as TransactionRecord[],
   tokens: [] as Token[],
@@ -55,6 +58,7 @@ export const useWalletStore = create<WalletStore>((set) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   setBalance: (balance) => set({ balance }),
   setNetwork: (network, key) => set({ network, networkKey: key }),
+  setNetworks: (networks) => set({ networks }),
   setError: (error) => set({ error }),
   setTransactions: (transactions) => set({ transactions }),
   setTokens: (tokens) => set({ tokens }),
@@ -94,8 +98,10 @@ export const walletActions = {
     try {
       const hasWallets = await sendMessage<boolean>('wallet_hasWallets');
       const isUnlocked = await sendMessage<boolean>('wallet_isUnlocked');
+      const networks = await sendMessage<Record<string, NetworkConfig>>('wallet_getNetworks');
 
       store.setUnlocked(isUnlocked);
+      store.setNetworks(networks || NETWORKS);
 
       if (hasWallets && isUnlocked) {
         const wallets = await sendMessage<Wallet[]>('wallet_getAllAccounts');
@@ -304,7 +310,7 @@ export const walletActions = {
 
     try {
       await sendMessage('wallet_switchNetwork', [networkKey]);
-      const network = NETWORKS[networkKey];
+      const network = store.networks[networkKey] || NETWORKS[networkKey];
       store.setNetwork(network, networkKey);
       // Refresh balance on new network
       await walletActions.refreshBalance();

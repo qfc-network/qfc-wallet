@@ -2,7 +2,7 @@ import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { AlertTriangle, Globe, FileText, Send } from 'lucide-react';
 import { useTranslation } from '../../i18n';
-import type { TransactionRequest, SignRequest, ConnectRequest } from '../../types/transaction';
+import type { TransactionRequest, SignRequest, ConnectRequest, AddChainRequest } from '../../types/transaction';
 
 export default function ApprovalDialog() {
   const { pendingApproval, currentAddress } = useWalletStore();
@@ -34,6 +34,8 @@ export default function ApprovalDialog() {
         return <TransactionApproval origin={pendingApproval.origin} data={pendingApproval.data as TransactionRequest} address={currentAddress || ''} t={t} />;
       case 'sign':
         return <SignApproval origin={pendingApproval.origin} data={pendingApproval.data as SignRequest} t={t} />;
+      case 'add_chain':
+        return <AddChainApproval data={pendingApproval.data as AddChainRequest} t={t} />;
       default:
         return null;
     }
@@ -65,7 +67,9 @@ export default function ApprovalDialog() {
           onClick={handleApprove}
           className="w-full py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
         >
-          {pendingApproval.type === 'connect' ? t.approval.approve : t.common.confirm}
+          {pendingApproval.type === 'connect' || pendingApproval.type === 'add_chain'
+            ? t.approval.approve
+            : t.common.confirm}
         </button>
         <button
           onClick={handleReject}
@@ -193,6 +197,50 @@ function SignApproval({ data, t }: { origin: string; data: SignRequest; t: Retur
         <p className="text-sm text-blue-800">
           {t.approval.requestsSignature}
         </p>
+      </div>
+    </div>
+  );
+}
+
+function AddChainApproval({ data, t }: { data: AddChainRequest; t: ReturnType<typeof useTranslation> }) {
+  const currency = data.nativeCurrency
+    ? `${data.nativeCurrency.symbol} (${data.nativeCurrency.decimals})`
+    : '-';
+  const rpcUrl = data.rpcUrls?.[0] || '-';
+  const explorer = data.blockExplorerUrls?.[0] || '-';
+
+  return (
+    <div>
+      <div className="flex items-center justify-center gap-2 mb-4">
+        <Globe size={24} className="text-qfc-600" />
+        <h2 className="text-xl font-bold text-gray-800">{t.approval.addChainRequest}</h2>
+      </div>
+
+      <p className="text-gray-500 text-center mb-4">
+        {t.approval.requestsAddChain}
+      </p>
+
+      <div className="bg-white rounded-xl p-4 space-y-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">{t.approval.chainName}</span>
+          <span className="font-medium">{data.chainName}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">{t.approval.chainId}</span>
+          <span className="font-mono">{data.chainId}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">{t.approval.rpcUrl}</span>
+          <span className="font-mono text-right break-all">{rpcUrl}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">{t.approval.explorer}</span>
+          <span className="font-mono text-right break-all">{explorer}</span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">{t.approval.currency}</span>
+          <span>{currency}</span>
+        </div>
       </div>
     </div>
   );

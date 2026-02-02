@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink, User } from 'lucide-react';
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
-import { NETWORKS, NetworkKey } from '../../utils/constants';
+import { NetworkKey } from '../../utils/constants';
 import { calculateUsdValue } from '../../utils/prices';
 import { useTranslation } from '../../i18n';
 import SendPage from './Send';
@@ -18,7 +18,7 @@ type Tab = 'assets' | 'activity';
 type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'sendToken';
 
 export default function Home() {
-  const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval, wallets } = useWalletStore();
+  const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval, wallets, networks } = useWalletStore();
   const t = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('assets');
   const [view, setView] = useState<View>('home');
@@ -200,7 +200,7 @@ export default function Home() {
 
         {showNetworkMenu && (
           <div className="absolute top-full left-4 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-10">
-            {(Object.keys(NETWORKS) as NetworkKey[]).map((key) => (
+            {(Object.keys(networks) as NetworkKey[]).map((key) => (
               <button
                 key={key}
                 onClick={() => handleNetworkSwitch(key)}
@@ -209,7 +209,7 @@ export default function Home() {
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full ${key === 'mainnet' ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                {NETWORKS[key].name}
+                {networks[key]?.name || key}
               </button>
             ))}
           </div>

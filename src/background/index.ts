@@ -21,6 +21,9 @@ let initPromise: Promise<void> | null = null;
 
 // Initialize on service worker start
 async function initialize() {
+  const customNetworks = await networkStorage.getCustomNetworks();
+  Object.assign(NETWORKS, customNetworks);
+
   await walletController.initialize();
 
   // Load saved network
@@ -395,6 +398,58 @@ async function handleMessage(
         break;
       }
 
+      case 'wallet_addEthereumChain': {
+        const [chainParams] = params as [Record<string, unknown>];
+        if (!chainParams || !chainParams.chainId || !chainParams.chainName || !chainParams.rpcUrls) {
+          throw { code: RPC_ERRORS.INVALID_PARAMS.code, message: 'Invalid chain params' };
+        }
+
+        const approved = await requestApproval('add_chain', senderOrigin, chainParams);
+        if (!approved) {
+          throw { code: RPC_ERRORS.USER_REJECTED.code, message: 'User rejected the request' };
+        }
+
+        const chainId = String(chainParams.chainId);
+        const chainName = String(chainParams.chainName);
+        const rpcUrls = chainParams.rpcUrls as string[];
+        const blockExplorerUrls = (chainParams.blockExplorerUrls as string[] | undefined) || [];
+        const nativeCurrency = chainParams.nativeCurrency as
+          | { name: string; symbol: string; decimals: number }
+          | undefined;
+
+        const rpcUrl = rpcUrls[0];
+        if (!rpcUrl) {
+          throw { code: RPC_ERRORS.INVALID_PARAMS.code, message: 'rpcUrls is required' };
+        }
+
+        const parsedChainId = chainId.startsWith('0x') ? parseInt(chainId, 16) : Number(chainId);
+        const normalizedHex = chainId.startsWith('0x') ? chainId.toLowerCase() : `0x${parsedChainId.toString(16)}`;
+        const networkKey = `custom_${normalizedHex}` as NetworkKey;
+
+        const customNetwork = {
+          chainId: parsedChainId,
+          chainIdHex: normalizedHex,
+          name: chainName,
+          rpcUrl,
+          explorerUrl: blockExplorerUrls[0] || '',
+          symbol: nativeCurrency?.symbol || 'QFC',
+          decimals: nativeCurrency?.decimals || 18,
+        };
+
+        NETWORKS[networkKey] = customNetwork;
+        await networkStorage.addCustomNetwork(networkKey, customNetwork);
+
+        await networkStorage.setCurrentNetwork(networkKey);
+        currentNetworkKey = networkKey;
+        walletController.setNetwork(NETWORKS[networkKey]);
+        notifyChainChanged().catch((error) => {
+          console.error('[QFC] Failed to emit chainChanged:', error);
+        });
+
+        result = null;
+        break;
+      }
+
       case 'wallet_importWallet': {
         const [keyOrMnemonic, name, password] = params as [string, string, string];
         result = await walletController.importWallet(keyOrMnemonic, name, password);
@@ -486,6 +541,11 @@ async function handleMessage(
         } else {
           throw new Error('Unknown network');
         }
+        break;
+      }
+
+      case 'wallet_getNetworks': {
+        result = NETWORKS;
         break;
       }
 
@@ -823,7 +883,7 @@ async function notifyChainChanged() {
 
 // Request approval from popup
 async function requestApproval(
-  type: 'transaction' | 'sign' | 'connect',
+  type: 'transaction' | 'sign' | 'connect' | 'add_chain',
   origin: string,
   data: unknown
 ): Promise<boolean> {

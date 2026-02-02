@@ -25,11 +25,11 @@ export interface TransactionRecord {
 
 export interface PendingApproval {
   id: string;
-  type: 'transaction' | 'sign' | 'connect';
+  type: 'transaction' | 'sign' | 'connect' | 'add_chain';
   origin: string;
   favicon?: string;
   timestamp: number;
-  data: TransactionRequest | SignRequest | ConnectRequest;
+  data: TransactionRequest | SignRequest | ConnectRequest | AddChainRequest;
 }
 
 export interface SignRequest {
@@ -42,4 +42,16 @@ export interface ConnectRequest {
   origin: string;
   title?: string;
   favicon?: string;
+}
+
+export interface AddChainRequest {
+  chainId: string;
+  chainName: string;
+  rpcUrls: string[];
+  nativeCurrency?: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  blockExplorerUrls?: string[];
 }

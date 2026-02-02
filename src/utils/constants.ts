@@ -1,6 +1,7 @@
-// QFC Network Configuration
+import type { NetworkConfig } from '../types/wallet';
 
-export const NETWORKS = {
+// QFC Network Configuration
+export const NETWORKS: Record<string, NetworkConfig> = {
   localhost: {
     chainId: 9000,
     chainIdHex: '0x2328',
@@ -28,9 +29,9 @@ export const NETWORKS = {
     symbol: 'QFC',
     decimals: 18,
   },
-} as const;
+};
 
-export type NetworkKey = keyof typeof NETWORKS;
+export type NetworkKey = string;
 
 export const DEFAULT_NETWORK = NETWORKS.localhost;
 
@@ -45,6 +46,7 @@ export const STORAGE_KEYS = {
   WALLETS: 'qfc_wallets',
   CURRENT_ADDRESS: 'qfc_current_address',
   NETWORK: 'qfc_network',
+  CUSTOM_NETWORKS: 'qfc_custom_networks',
   CONNECTED_SITES: 'qfc_connected_sites',
   TX_HISTORY: 'qfc_tx_history',
   TOKENS: 'qfc_tokens',
