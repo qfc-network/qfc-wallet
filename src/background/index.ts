@@ -101,7 +101,7 @@ async function handleMessage(
   await ensureInitialized();
 
   const { method, params = [], id, origin } = message;
-  const senderOrigin = origin || sender?.origin || sender?.url || 'unknown';
+  const senderOrigin = origin || getSenderOrigin(sender);
 
   console.log(`[QFC] Request: ${method}`, params);
 
@@ -156,6 +156,18 @@ async function handleMessage(
 
       case 'net_version': {
         result = walletController.getNetwork().chainId.toString();
+        break;
+      }
+
+      case 'eth_blockNumber': {
+        const blockNumber = await walletController.getBlockNumber();
+        result = '0x' + blockNumber.toString(16);
+        break;
+      }
+
+      case 'eth_getCode': {
+        const [address] = params as [string];
+        result = await walletController.getCode(address);
         break;
       }
 
@@ -220,6 +232,12 @@ async function handleMessage(
         break;
       }
 
+      case 'eth_call': {
+        const [txParams] = params as [Record<string, unknown>];
+        result = await walletController.call(txParams);
+        break;
+      }
+
       // Signing methods
       case 'personal_sign': {
         const [message, _address] = params as [string, string];
@@ -277,6 +295,88 @@ async function handleMessage(
         break;
       }
 
+      // EIP-2255 permissions
+      case 'wallet_requestPermissions': {
+        const [requested] = params as [Record<string, unknown>];
+
+        if (!requested || !('eth_accounts' in requested)) {
+          throw { code: RPC_ERRORS.INVALID_PARAMS.code, message: 'Only eth_accounts is supported' };
+        }
+
+        const account = walletController.getCurrentAccount();
+        if (account) {
+          const isConnected = await walletStorage.isConnected(senderOrigin, account);
+          if (!isConnected) {
+            const approved = await requestApproval('connect', senderOrigin, {
+              origin: senderOrigin,
+            });
+            if (!approved) {
+              throw { code: RPC_ERRORS.USER_REJECTED.code, message: 'User rejected the request' };
+            }
+          }
+          await walletStorage.addConnectedSite(senderOrigin, account);
+          result = [{ parentCapability: 'eth_accounts' }];
+          notifyAccountsChangedForOrigin(senderOrigin).catch((error) => {
+            console.error('[QFC] Failed to emit accountsChanged:', error);
+          });
+        } else if (!walletController.hasWallets()) {
+          throw new Error('No wallet found. Please create a wallet first.');
+        } else {
+          throw new Error('Wallet is locked. Please unlock your wallet.');
+        }
+        break;
+      }
+
+      case 'wallet_getPermissions': {
+        const account = walletController.getCurrentAccount();
+        if (account) {
+          const isConnected = await walletStorage.isConnected(senderOrigin, account);
+          result = isConnected ? [{ parentCapability: 'eth_accounts' }] : [];
+        } else {
+          result = [];
+        }
+        break;
+      }
+
+      case 'wallet_revokePermissions': {
+        const [requested] = params as [Record<string, unknown>];
+        if (requested && 'eth_accounts' in requested) {
+          await walletStorage.removeConnectedSite(senderOrigin);
+          notifyAccountsChangedForOrigin(senderOrigin).catch((error) => {
+            console.error('[QFC] Failed to emit accountsChanged:', error);
+          });
+        }
+        result = null;
+        break;
+      }
+
+      case 'wallet_switchEthereumChain': {
+        const [chainParams] = params as [{ chainId: string }];
+        const chainId = chainParams?.chainId;
+        if (!chainId) {
+          throw { code: RPC_ERRORS.INVALID_PARAMS.code, message: 'chainId is required' };
+        }
+
+        const targetKey = findNetworkKeyByChainId(chainId);
+        if (!targetKey) {
+          throw { code: 4902, message: 'Chain not found' };
+        }
+
+        if (targetKey === currentNetworkKey) {
+          result = null;
+          break;
+        }
+
+        currentNetworkKey = targetKey;
+        walletController.setNetwork(NETWORKS[targetKey]);
+        await networkStorage.setCurrentNetwork(targetKey);
+        result = null;
+        notifyChainChanged().catch((error) => {
+          console.error('[QFC] Failed to emit chainChanged:', error);
+        });
+        break;
+      }
+
       case 'wallet_importWallet': {
         const [keyOrMnemonic, name, password] = params as [string, string, string];
         result = await walletController.importWallet(keyOrMnemonic, name, password);
@@ -301,6 +401,12 @@ async function handleMessage(
         notifyAccountsChanged().catch((error) => {
           console.error('[QFC] Failed to emit accountsChanged:', error);
         });
+        break;
+      }
+
+      case 'wallet_exportPrivateKey': {
+        const [password, address] = params as [string, string | undefined];
+        result = await walletController.exportPrivateKey(password, address);
         break;
       }
 
@@ -553,6 +659,25 @@ async function handleMessage(
 
 function getSenderOrigin(sender?: chrome.runtime.MessageSender): string {
   return sender?.origin || sender?.url || 'unknown';
+}
+
+function findNetworkKeyByChainId(chainId: string): NetworkKey | null {
+  const normalized = chainId.toLowerCase();
+  const entries = Object.entries(NETWORKS) as [NetworkKey, (typeof NETWORKS)[NetworkKey]][];
+  for (const [key, network] of entries) {
+    if (network.chainIdHex.toLowerCase() === normalized) {
+      return key;
+    }
+    if (normalized.startsWith('0x')) {
+      try {
+        const dec = parseInt(normalized, 16);
+        if (dec === network.chainId) return key;
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }
+  return null;
 }
 
 function notifyPort(port: chrome.runtime.Port, method: string, params: unknown) {

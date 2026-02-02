@@ -62,6 +62,10 @@ export interface Translations {
     gasPrice: string;
     gasLimit: string;
     customizeFee: string;
+    from: string;
+    to: string;
+    nonce: string;
+    total: string;
     sendButton: string;
     sending: string;
     invalidAddress: string;
@@ -91,6 +95,11 @@ export interface Translations {
     security: string;
     autoLock: string;
     minutes: string;
+    exportPrivateKey: string;
+    exportWarning: string;
+    password: string;
+    reveal: string;
+    privateKey: string;
   };
   createWallet: {
     title: string;

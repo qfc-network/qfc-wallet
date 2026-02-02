@@ -253,6 +253,10 @@ export const walletActions = {
     }
   },
 
+  async exportPrivateKey(password: string, address?: string) {
+    return sendMessage<string>('wallet_exportPrivateKey', [password, address]);
+  },
+
   async refreshBalance(address?: string) {
     const store = useWalletStore.getState();
     const addr = address || store.currentAddress;

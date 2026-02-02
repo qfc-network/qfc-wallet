@@ -240,6 +240,28 @@ export class WalletController {
     return this.provider.getTransactionCount(addr);
   }
 
+  async exportPrivateKey(password: string, address?: string): Promise<string> {
+    const targetAddress = address || this.currentWallet?.address;
+    if (!targetAddress) throw new Error('No address');
+
+    const wallet = this.wallets.find((w) => w.address === targetAddress);
+    if (!wallet) throw new Error('Wallet not found');
+
+    return decrypt(wallet.encryptedPrivateKey, password);
+  }
+
+  async getBlockNumber(): Promise<number> {
+    return this.provider.getBlockNumber();
+  }
+
+  async getCode(address: string): Promise<string> {
+    return this.provider.getCode(address);
+  }
+
+  async call(tx: ethers.TransactionRequest): Promise<string> {
+    return this.provider.call(tx);
+  }
+
   setNetwork(network: NetworkConfig): void {
     this.network = network;
     this.provider = new ethers.JsonRpcProvider(network.rpcUrl);

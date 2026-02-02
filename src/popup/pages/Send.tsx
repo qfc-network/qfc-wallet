@@ -19,6 +19,7 @@ export default function Send({ onBack }: SendProps) {
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimatedGasLimit, setEstimatedGasLimit] = useState<bigint | null>(null);
   const [estimatedGasPriceWei, setEstimatedGasPriceWei] = useState<bigint | null>(null);
+  const [estimatedNonce, setEstimatedNonce] = useState<number | null>(null);
   const [showFeeOptions, setShowFeeOptions] = useState(false);
   const [customGasLimit, setCustomGasLimit] = useState('');
   const [customGasPrice, setCustomGasPrice] = useState('');
@@ -30,6 +31,7 @@ export default function Send({ onBack }: SendProps) {
   useEffect(() => {
     if (!recipientValid || !amountValid || !currentAddress) {
       setEstimatedGasLimit(null);
+      setEstimatedNonce(null);
       return;
     }
 
@@ -37,15 +39,17 @@ export default function Send({ onBack }: SendProps) {
       setIsEstimating(true);
       try {
         const valueWei = BigInt(Math.floor(amountNum * 1e18));
-        const [gasLimitHex, gasPriceHex] = await Promise.all([
+        const [gasLimitHex, gasPriceHex, nonceHex] = await Promise.all([
           sendMessage<string>('eth_estimateGas', [
             { from: currentAddress, to: recipient, value: '0x' + valueWei.toString(16) },
           ]),
           sendMessage<string>('eth_gasPrice'),
+          sendMessage<string>('eth_getTransactionCount', [currentAddress, 'latest']),
         ]);
 
         setEstimatedGasLimit(BigInt(gasLimitHex));
         setEstimatedGasPriceWei(BigInt(gasPriceHex));
+        setEstimatedNonce(Number(BigInt(nonceHex)));
       } catch (err) {
         console.error('Failed to estimate gas:', err);
       } finally {
@@ -258,6 +262,18 @@ export default function Send({ onBack }: SendProps) {
               <span>{amount} QFC</span>
             </div>
             <div className="flex justify-between text-sm">
+              <span className="text-gray-500">{t.send.from}</span>
+              <span className="font-mono">{currentAddress ? `${currentAddress.slice(0, 10)}...` : '-'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">{t.send.to}</span>
+              <span className="font-mono">{recipient ? `${recipient.slice(0, 10)}...` : '-'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">{t.send.nonce}</span>
+              <span>{estimatedNonce !== null ? estimatedNonce : '-'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span className="text-gray-500">{t.send.networkFee}</span>
               <span>{feeQfc ? `~${feeQfc} QFC` : isEstimating ? t.common.loading : '-'}</span>
             </div>
@@ -270,7 +286,7 @@ export default function Send({ onBack }: SendProps) {
               <span>{gasLimit ? gasLimit.toString() : '-'}</span>
             </div>
             <div className="border-t pt-2 flex justify-between font-medium">
-              <span>Total</span>
+              <span>{t.send.total}</span>
               <span>{feeQfc ? (parseFloat(amount) + parseFloat(feeQfc)).toFixed(4) : `${amount} QFC`}</span>
             </div>
           </div>

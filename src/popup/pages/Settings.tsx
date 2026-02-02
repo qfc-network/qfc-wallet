@@ -6,6 +6,7 @@ import { useI18n, LANGUAGES } from '../../i18n';
 import type { Language } from '../../i18n';
 import AddressBook from './AddressBook';
 import CreateAccountDialog from '../components/CreateAccountDialog';
+import ExportPrivateKeyDialog from '../components/ExportPrivateKeyDialog';
 
 interface SettingsProps {
   onBack: () => void;
@@ -19,6 +20,7 @@ export default function Settings({ onBack }: SettingsProps) {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showAddressBook, setShowAddressBook] = useState(false);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
+  const [showExportPrivateKey, setShowExportPrivateKey] = useState(false);
 
   const loadConnectedSites = async () => {
     try {
@@ -57,6 +59,11 @@ export default function Settings({ onBack }: SettingsProps) {
       <CreateAccountDialog
         open={showCreateAccount}
         onClose={() => setShowCreateAccount(false)}
+      />
+      <ExportPrivateKeyDialog
+        open={showExportPrivateKey}
+        onClose={() => setShowExportPrivateKey(false)}
+        address={currentAddress}
       />
       {/* Header */}
       <div className="p-4 flex items-center gap-3">
@@ -188,6 +195,18 @@ export default function Settings({ onBack }: SettingsProps) {
               <ExternalLink size={14} />
             </a>
           </div>
+        </div>
+
+        {/* Security */}
+        <div className="bg-white rounded-xl p-4">
+          <h2 className="font-semibold text-gray-800 mb-3">{t.settings.security}</h2>
+          <button
+            onClick={() => setShowExportPrivateKey(true)}
+            className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <span>{t.settings.exportPrivateKey}</span>
+            <ChevronRight size={18} className="text-gray-500" />
+          </button>
         </div>
 
         {/* Connected Sites */}
