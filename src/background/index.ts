@@ -238,6 +238,24 @@ async function handleMessage(
         break;
       }
 
+      case 'eth_getTransactionReceipt': {
+        const [hash] = params as [string];
+        result = await walletController.getTransactionReceipt(hash);
+        break;
+      }
+
+      case 'eth_getTransactionByHash': {
+        const [hash] = params as [string];
+        result = await walletController.getTransactionByHash(hash);
+        break;
+      }
+
+      case 'eth_getBlockByNumber': {
+        const [blockTag] = params as [string, boolean?];
+        result = await walletController.getBlockByNumber(blockTag);
+        break;
+      }
+
       // Signing methods
       case 'personal_sign': {
         const [message, _address] = params as [string, string];

@@ -322,6 +322,18 @@ export class WalletController {
     return this.provider.call(tx);
   }
 
+  async getTransactionReceipt(hash: string): Promise<ethers.TransactionReceipt | null> {
+    return this.provider.getTransactionReceipt(hash);
+  }
+
+  async getTransactionByHash(hash: string): Promise<ethers.TransactionResponse | null> {
+    return this.provider.getTransaction(hash);
+  }
+
+  async getBlockByNumber(blockTag: string): Promise<ethers.Block | null> {
+    return this.provider.getBlock(blockTag as ethers.BlockTag);
+  }
+
   setNetwork(network: NetworkConfig): void {
     this.network = network;
     this.provider = new ethers.JsonRpcProvider(network.rpcUrl);
