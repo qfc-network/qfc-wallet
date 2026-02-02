@@ -101,6 +101,10 @@ export const ko: Translations = {
     mnemonic: '복구 구문',
     addDerivedAccount: '파생 계정 추가',
     derivedAccountHint: '복구 구문으로 새 계정을 만듭니다.',
+    priceSettings: '가격 설정',
+    coingeckoId: 'CoinGecko ID',
+    coingeckoApiKey: 'CoinGecko API Key',
+    priceSettingsHint: '자동으로 찾지 못한 토큰 ID를 설정합니다.',
   },
   createWallet: {
     title: 'QFC 지갑에 오신 것을 환영합니다',

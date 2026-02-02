@@ -101,6 +101,10 @@ export const ja: Translations = {
     mnemonic: 'リカバリーフレーズ',
     addDerivedAccount: '派生アカウントを追加',
     derivedAccountHint: 'リカバリーフレーズから新しいアカウントを作成します。',
+    priceSettings: '価格設定',
+    coingeckoId: 'CoinGecko ID',
+    coingeckoApiKey: 'CoinGecko API Key',
+    priceSettingsHint: '自動で見つからないトークンのIDを設定します。',
   },
   createWallet: {
     title: 'QFCウォレットへようこそ',

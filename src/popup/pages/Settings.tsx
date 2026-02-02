@@ -9,6 +9,7 @@ import CreateAccountDialog from '../components/CreateAccountDialog';
 import ExportPrivateKeyDialog from '../components/ExportPrivateKeyDialog';
 import ExportMnemonicDialog from '../components/ExportMnemonicDialog';
 import AddDerivedAccountDialog from '../components/AddDerivedAccountDialog';
+import { getCoingeckoApiKey, getCoingeckoId, setCoingeckoApiKey, setCoingeckoId } from '../../utils/prices';
 
 interface SettingsProps {
   onBack: () => void;
@@ -27,6 +28,8 @@ export default function Settings({ onBack }: SettingsProps) {
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [showAddDerivedAccount, setShowAddDerivedAccount] = useState(false);
+  const [coingeckoApiKey, setCoingeckoApiKeyState] = useState('');
+  const [coingeckoQfcId, setCoingeckoQfcId] = useState('');
 
   const loadConnectedSites = async () => {
     try {
@@ -65,6 +68,11 @@ export default function Settings({ onBack }: SettingsProps) {
     setEditingAddress(null);
     setEditingName('');
   };
+
+  useEffect(() => {
+    setCoingeckoApiKeyState(getCoingeckoApiKey());
+    setCoingeckoQfcId(getCoingeckoId('QFC'));
+  }, []);
 
   const currentLang = LANGUAGES.find((l) => l.code === language);
 
@@ -294,6 +302,46 @@ export default function Settings({ onBack }: SettingsProps) {
               <span>{t.settings.exportMnemonic}</span>
               <ChevronRight size={18} className="text-gray-500" />
             </button>
+          </div>
+        </div>
+
+        {/* Price Settings */}
+        <div className="bg-white rounded-xl p-4">
+          <h2 className="font-semibold text-gray-800 mb-3">{t.settings.priceSettings}</h2>
+          <p className="text-xs text-gray-500 mb-3">{t.settings.priceSettingsHint}</p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t.settings.coingeckoId} (QFC)
+              </label>
+              <input
+                type="text"
+                value={coingeckoQfcId}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setCoingeckoQfcId(value);
+                  setCoingeckoId('QFC', value.trim());
+                }}
+                placeholder="qfc"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t.settings.coingeckoApiKey}
+              </label>
+              <input
+                type="text"
+                value={coingeckoApiKey}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setCoingeckoApiKeyState(value);
+                  setCoingeckoApiKey(value.trim());
+                }}
+                placeholder="optional"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
+              />
+            </div>
           </div>
         </div>
 

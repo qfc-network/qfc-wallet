@@ -110,6 +110,10 @@ export interface Translations {
     mnemonic: string;
     addDerivedAccount: string;
     derivedAccountHint: string;
+    priceSettings: string;
+    coingeckoId: string;
+    coingeckoApiKey: string;
+    priceSettingsHint: string;
   };
   createWallet: {
     title: string;

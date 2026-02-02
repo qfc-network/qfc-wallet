@@ -101,6 +101,10 @@ export const en: Translations = {
     mnemonic: 'Recovery Phrase',
     addDerivedAccount: 'Add Derived Account',
     derivedAccountHint: 'Creates a new account from your recovery phrase.',
+    priceSettings: 'Price Settings',
+    coingeckoId: 'CoinGecko ID',
+    coingeckoApiKey: 'CoinGecko API Key',
+    priceSettingsHint: 'Set IDs for tokens not found automatically.',
   },
   createWallet: {
     title: 'Welcome to QFC Wallet',

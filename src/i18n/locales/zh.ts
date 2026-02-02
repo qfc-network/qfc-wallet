@@ -101,6 +101,10 @@ export const zh: Translations = {
     mnemonic: '助记词',
     addDerivedAccount: '添加派生账户',
     derivedAccountHint: '使用助记词创建新的账户。',
+    priceSettings: '价格设置',
+    coingeckoId: 'CoinGecko ID',
+    coingeckoApiKey: 'CoinGecko API Key',
+    priceSettingsHint: '为无法自动识别的代币设置 ID。',
   },
   createWallet: {
     title: '欢迎使用 QFC 钱包',

@@ -50,6 +50,10 @@ function loadApiKey(): string | null {
   }
 }
 
+export function getCoingeckoApiKey(): string {
+  return loadApiKey() || '';
+}
+
 export function setCoingeckoId(symbol: string, id: string): void {
   try {
     const existing = loadCustomIds();
@@ -58,6 +62,11 @@ export function setCoingeckoId(symbol: string, id: string): void {
   } catch {
     // ignore
   }
+}
+
+export function getCoingeckoId(symbol: string): string {
+  const customIds = loadCustomIds();
+  return customIds[symbol.toUpperCase()] || '';
 }
 
 function loadCache(): PriceCache {
