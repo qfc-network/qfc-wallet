@@ -555,7 +555,7 @@ function getSenderOrigin(sender?: chrome.runtime.MessageSender): string {
   return sender?.origin || sender?.url || 'unknown';
 }
 
-function notifyPort(port: chrome.runtime.Port, method: string, params: unknown[]) {
+function notifyPort(port: chrome.runtime.Port, method: string, params: unknown) {
   port.postMessage({
     type: 'QFC_NOTIFICATION',
     payload: { method, params },

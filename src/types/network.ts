@@ -23,7 +23,7 @@ export interface ProviderMessage {
   id?: number;
   payload: {
     method: string;
-    params?: unknown[];
+    params?: unknown;
     result?: unknown;
     error?: RpcError;
   };
