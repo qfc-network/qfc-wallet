@@ -259,6 +259,12 @@ async function handleMessage(
         break;
       }
 
+      case 'eth_getLogs': {
+        const [filter] = params as [Record<string, unknown>];
+        result = await walletController.getLogs(filter);
+        break;
+      }
+
       // Signing methods
       case 'personal_sign': {
         const [message, _address] = params as [string, string];

@@ -334,6 +334,10 @@ export class WalletController {
     return this.provider.getBlock(blockTag as ethers.BlockTag);
   }
 
+  async getLogs(filter: Record<string, unknown>): Promise<ethers.Log[]> {
+    return this.provider.getLogs(filter as ethers.Filter);
+  }
+
   setNetwork(network: NetworkConfig): void {
     this.network = network;
     this.provider = new ethers.JsonRpcProvider(network.rpcUrl);
