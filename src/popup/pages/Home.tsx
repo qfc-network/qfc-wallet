@@ -4,6 +4,7 @@ import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { NETWORKS, NetworkKey } from '../../utils/constants';
 import { calculateUsdValue } from '../../utils/prices';
+import { useTranslation } from '../../i18n';
 import SendPage from './Send';
 import SendToken from './SendToken';
 import Receive from './Receive';
@@ -17,6 +18,7 @@ type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'sendToken';
 
 export default function Home() {
   const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval } = useWalletStore();
+  const t = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('assets');
   const [view, setView] = useState<View>('home');
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
@@ -104,20 +106,20 @@ export default function Home() {
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-gradient-to-r from-qfc-500 to-blue-500" />
-          <span className="font-bold text-lg">QFC Wallet</span>
+          <span className="font-bold text-lg">QFC {t.common.wallet}</span>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleRefresh}
             className="p-2 hover:bg-white/50 rounded-lg"
-            title="Refresh"
+            title={t.common.refresh}
           >
             <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
           </button>
           <button
             onClick={handleLock}
             className="p-2 hover:bg-white/50 rounded-lg"
-            title="Lock wallet"
+            title={t.common.lock}
           >
             <Lock size={18} />
           </button>
@@ -155,7 +157,7 @@ export default function Home() {
 
       {/* Balance Card */}
       <div className="mx-4 bg-gradient-to-r from-qfc-500 to-blue-500 rounded-2xl p-6 text-white">
-        <div className="text-sm opacity-80">Total Balance</div>
+        <div className="text-sm opacity-80">{t.home.totalBalance}</div>
         <div className="text-3xl font-bold mt-1">{balance} QFC</div>
         <div className="text-sm opacity-80 mt-1">${usdValue} USD</div>
 
@@ -166,13 +168,13 @@ export default function Home() {
           <button
             onClick={copyAddress}
             className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
-            title={copied ? 'Copied!' : 'Copy address'}
+            title={copied ? t.common.copied : t.common.copy}
           >
             <Copy size={14} />
           </button>
           {copied && (
             <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
-              Copied!
+              {t.common.copied}
             </span>
           )}
         </div>
@@ -182,17 +184,17 @@ export default function Home() {
       <div className="grid grid-cols-3 gap-3 p-4">
         <QuickAction
           icon={<ArrowDownToLine size={20} />}
-          label="Receive"
+          label={t.common.receive}
           onClick={() => setView('receive')}
         />
         <QuickAction
           icon={<SendIcon size={20} />}
-          label="Send"
+          label={t.common.send}
           onClick={() => setView('send')}
         />
         <QuickAction
           icon={<span className="text-lg">⇄</span>}
-          label="Swap"
+          label={t.common.swap}
           onClick={() => {}}
           disabled
         />
@@ -210,7 +212,7 @@ export default function Home() {
                 : 'border-transparent text-gray-500'
             }`}
           >
-            Assets
+            {t.home.assets}
           </button>
           <button
             onClick={() => setActiveTab('activity')}
@@ -220,7 +222,7 @@ export default function Home() {
                 : 'border-transparent text-gray-500'
             }`}
           >
-            Activity
+            {t.home.activity}
           </button>
         </div>
 
@@ -255,18 +257,18 @@ export default function Home() {
                 className="w-full flex items-center justify-center gap-2 p-3 text-qfc-600 hover:bg-qfc-50 rounded-xl transition-colors"
               >
                 <Plus size={18} />
-                <span className="text-sm font-medium">Add Token</span>
+                <span className="text-sm font-medium">{t.home.addToken}</span>
               </button>
             </div>
           ) : (
             <div className="space-y-2">
               {transactions.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
-                  No recent activity
+                  {t.home.noActivity}
                 </div>
               ) : (
                 transactions.map((tx) => (
-                  <TransactionItem key={tx.hash} tx={tx} currentAddress={currentAddress || ''} explorerUrl={network.explorerUrl} />
+                  <TransactionItem key={tx.hash} tx={tx} currentAddress={currentAddress || ''} explorerUrl={network.explorerUrl} t={t} />
                 ))
               )}
             </div>
@@ -355,10 +357,12 @@ function TransactionItem({
   tx,
   currentAddress,
   explorerUrl,
+  t,
 }: {
   tx: { hash: string; from: string; to: string; value: string; timestamp: number; status: string; type: string };
   currentAddress: string;
   explorerUrl: string;
+  t: ReturnType<typeof useTranslation>;
 }) {
   const isSent = tx.from.toLowerCase() === currentAddress.toLowerCase();
   const date = new Date(tx.timestamp);
@@ -368,12 +372,19 @@ function TransactionItem({
   // Determine display label based on transaction type
   const getLabel = () => {
     if (tx.type === 'token_transfer') {
-      return isSent ? 'Token Sent' : 'Token Received';
+      return isSent ? t.home.tokenSent : t.home.tokenReceived;
     }
     if (tx.type === 'contract') {
-      return 'Contract Call';
+      return t.home.contractCall;
     }
-    return isSent ? 'Sent' : 'Received';
+    return isSent ? t.home.sent : t.home.received;
+  };
+
+  // Get status text
+  const getStatusText = () => {
+    if (tx.status === 'confirmed') return t.common.confirmed;
+    if (tx.status === 'pending') return t.common.pending;
+    return t.common.failed;
   };
 
   // Format value display (token transfers include symbol in value)
@@ -407,7 +418,7 @@ function TransactionItem({
             tx.status === 'confirmed' ? 'text-green-500' :
             tx.status === 'pending' ? 'text-yellow-500' : 'text-red-500'
           }`}>
-            {tx.status}
+            {getStatusText()}
           </div>
         </div>
         <a

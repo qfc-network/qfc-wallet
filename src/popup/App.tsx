@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { useWalletStore, walletActions } from './store';
+import { useTranslation } from '../i18n';
 import Home from './pages/Home';
 import Unlock from './pages/Unlock';
 import CreateWallet from './pages/CreateWallet';
 
 export default function App() {
   const { isLoading, isUnlocked, wallets } = useWalletStore();
+  const t = useTranslation();
 
   useEffect(() => {
     walletActions.initialize();
@@ -16,7 +18,7 @@ export default function App() {
       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-qfc-50 to-blue-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-gradient-to-r from-qfc-500 to-blue-500 animate-pulse" />
-          <p className="text-gray-500">Loading...</p>
+          <p className="text-gray-500">{t.common.loading}</p>
         </div>
       </div>
     );

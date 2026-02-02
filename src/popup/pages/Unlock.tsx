@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Unlock as UnlockIcon } from 'lucide-react';
 import { useWalletStore, walletActions } from '../store';
+import { useTranslation } from '../../i18n';
 
 export default function Unlock() {
   const { error, isLoading } = useWalletStore();
+  const t = useTranslation();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
@@ -13,17 +15,17 @@ export default function Unlock() {
     setLocalError('');
 
     if (!password) {
-      setLocalError('Please enter your password');
+      setLocalError(t.unlock.enterPassword);
       return;
     }
 
     try {
       const success = await walletActions.unlock(password);
       if (!success) {
-        setLocalError('Incorrect password');
+        setLocalError(t.unlock.wrongPassword);
       }
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : 'Failed to unlock');
+      setLocalError(err instanceof Error ? err.message : t.common.error);
     }
   };
 
@@ -36,9 +38,9 @@ export default function Unlock() {
           <UnlockIcon size={36} className="text-white" />
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Welcome Back</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">{t.unlock.title}</h1>
         <p className="text-gray-500 text-center mb-8">
-          Enter your password to unlock your wallet
+          {t.unlock.enterPassword}
         </p>
 
         {/* Unlock Form */}
@@ -48,7 +50,7 @@ export default function Unlock() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
+              placeholder={t.unlock.passwordPlaceholder}
               className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl pr-12 focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
               autoFocus
             />
@@ -72,7 +74,7 @@ export default function Unlock() {
             disabled={isLoading}
             className="w-full py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {isLoading ? 'Unlocking...' : 'Unlock'}
+            {isLoading ? t.common.loading : t.unlock.unlockButton}
           </button>
         </form>
       </div>
@@ -80,7 +82,7 @@ export default function Unlock() {
       {/* Footer */}
       <div className="p-6 text-center">
         <p className="text-sm text-gray-400">
-          QFC Wallet v1.0.0
+          QFC {t.common.wallet} v1.0.0
         </p>
       </div>
     </div>

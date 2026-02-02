@@ -1,6 +1,7 @@
 import { STORAGE_KEYS } from './constants';
 import type { TransactionRecord } from '../types/transaction';
 import type { Token } from '../types/token';
+import type { Contact } from '../types/contact';
 
 /**
  * Chrome storage wrapper with type safety
@@ -192,5 +193,40 @@ export const networkStorage = {
 
   async setCurrentNetwork(network: string): Promise<void> {
     await storage.set(STORAGE_KEYS.NETWORK, network);
+  },
+};
+
+/**
+ * Contact storage for address book
+ */
+export const contactStorage = {
+  async getContacts(): Promise<Contact[]> {
+    return (await storage.get<Contact[]>(STORAGE_KEYS.CONTACTS)) ?? [];
+  },
+
+  async addContact(contact: Contact): Promise<void> {
+    const contacts = await this.getContacts();
+    contacts.push(contact);
+    await storage.set(STORAGE_KEYS.CONTACTS, contacts);
+  },
+
+  async updateContact(id: string, updates: Partial<Contact>): Promise<void> {
+    const contacts = await this.getContacts();
+    const index = contacts.findIndex((c) => c.id === id);
+    if (index !== -1) {
+      contacts[index] = { ...contacts[index], ...updates, updatedAt: Date.now() };
+      await storage.set(STORAGE_KEYS.CONTACTS, contacts);
+    }
+  },
+
+  async removeContact(id: string): Promise<void> {
+    const contacts = await this.getContacts();
+    const filtered = contacts.filter((c) => c.id !== id);
+    await storage.set(STORAGE_KEYS.CONTACTS, filtered);
+  },
+
+  async getContactByAddress(address: string): Promise<Contact | null> {
+    const contacts = await this.getContacts();
+    return contacts.find((c) => c.address.toLowerCase() === address.toLowerCase()) ?? null;
   },
 };

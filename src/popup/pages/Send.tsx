@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, AlertCircle } from 'lucide-react';
 import { useWalletStore, sendMessage } from '../store';
 import { isValidAddress } from '../../utils/validation';
+import { useTranslation } from '../../i18n';
 
 interface SendProps {
   onBack: () => void;
@@ -9,6 +10,7 @@ interface SendProps {
 
 export default function Send({ onBack }: SendProps) {
   const { currentAddress, balance } = useWalletStore();
+  const t = useTranslation();
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
@@ -20,19 +22,19 @@ export default function Send({ onBack }: SendProps) {
 
     // Validate recipient
     if (!isValidAddress(recipient)) {
-      setError('Invalid recipient address');
+      setError(t.send.invalidAddress);
       return;
     }
 
     // Validate amount
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      setError('Invalid amount');
+      setError(t.send.invalidAmount);
       return;
     }
 
     if (amountNum > parseFloat(balance)) {
-      setError('Insufficient balance');
+      setError(t.send.insufficientBalance);
       return;
     }
 
@@ -51,7 +53,7 @@ export default function Send({ onBack }: SendProps) {
 
       setTxHash(hash);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transaction failed');
+      setError(err instanceof Error ? err.message : t.common.error);
     } finally {
       setIsLoading(false);
     }
@@ -84,10 +86,10 @@ export default function Send({ onBack }: SendProps) {
           </div>
 
           <h2 className="text-xl font-bold text-gray-800 mb-2">
-            Transaction Sent!
+            {t.send.transactionSent}
           </h2>
           <p className="text-gray-500 text-center mb-4">
-            Your transaction has been submitted to the network
+            {t.common.success}
           </p>
 
           <div className="bg-white rounded-xl p-4 w-full max-w-sm mb-6">
@@ -99,7 +101,7 @@ export default function Send({ onBack }: SendProps) {
             onClick={onBack}
             className="w-full max-w-sm py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl"
           >
-            Done
+            {t.common.confirm}
           </button>
         </div>
       </div>
@@ -116,34 +118,34 @@ export default function Send({ onBack }: SendProps) {
         >
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-lg font-bold">Send QFC</h1>
+        <h1 className="text-lg font-bold">{t.send.title}</h1>
       </div>
 
       {/* Form */}
       <div className="flex-1 p-4 space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Recipient Address
+            {t.send.recipient}
           </label>
           <input
             type="text"
             value={recipient}
             onChange={(e) => setRecipient(e.target.value)}
-            placeholder="0x..."
+            placeholder={t.send.recipientPlaceholder}
             className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Amount
+            {t.send.amount}
           </label>
           <div className="relative">
             <input
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.0"
+              placeholder={t.send.amountPlaceholder}
               step="0.0001"
               className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl pr-20 focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
             />
@@ -151,11 +153,11 @@ export default function Send({ onBack }: SendProps) {
               onClick={setMaxAmount}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-qfc-600 text-sm font-medium"
             >
-              MAX
+              {t.send.max}
             </button>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            Available: {balance} QFC
+            {t.common.balance}: {balance} QFC
           </p>
         </div>
 
@@ -169,13 +171,13 @@ export default function Send({ onBack }: SendProps) {
         {/* Transaction Summary */}
         {recipient && amount && parseFloat(amount) > 0 && (
           <div className="bg-white rounded-xl p-4 space-y-2">
-            <h3 className="font-medium text-gray-800">Transaction Summary</h3>
+            <h3 className="font-medium text-gray-800">{t.send.title}</h3>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Amount</span>
+              <span className="text-gray-500">{t.send.amount}</span>
               <span>{amount} QFC</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Network Fee (est.)</span>
+              <span className="text-gray-500">{t.send.estimatedGas}</span>
               <span>~0.001 QFC</span>
             </div>
             <div className="border-t pt-2 flex justify-between font-medium">
@@ -193,7 +195,7 @@ export default function Send({ onBack }: SendProps) {
           disabled={isLoading || !recipient || !amount}
           className="w-full py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          {isLoading ? 'Sending...' : 'Send'}
+          {isLoading ? t.send.sending : t.send.sendButton}
         </button>
       </div>
     </div>

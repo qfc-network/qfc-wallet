@@ -1,10 +1,12 @@
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { AlertTriangle, Globe, FileText, Send } from 'lucide-react';
+import { useTranslation } from '../../i18n';
 import type { TransactionRequest, SignRequest, ConnectRequest } from '../../types/transaction';
 
 export default function ApprovalDialog() {
   const { pendingApproval, currentAddress } = useWalletStore();
+  const t = useTranslation();
 
   if (!pendingApproval) return null;
 
@@ -27,11 +29,11 @@ export default function ApprovalDialog() {
   const renderContent = () => {
     switch (pendingApproval.type) {
       case 'connect':
-        return <ConnectApproval origin={pendingApproval.origin} data={pendingApproval.data as ConnectRequest} />;
+        return <ConnectApproval origin={pendingApproval.origin} data={pendingApproval.data as ConnectRequest} t={t} />;
       case 'transaction':
-        return <TransactionApproval origin={pendingApproval.origin} data={pendingApproval.data as TransactionRequest} address={currentAddress || ''} />;
+        return <TransactionApproval origin={pendingApproval.origin} data={pendingApproval.data as TransactionRequest} address={currentAddress || ''} t={t} />;
       case 'sign':
-        return <SignApproval origin={pendingApproval.origin} data={pendingApproval.data as SignRequest} />;
+        return <SignApproval origin={pendingApproval.origin} data={pendingApproval.data as SignRequest} t={t} />;
       default:
         return null;
     }
@@ -63,52 +65,48 @@ export default function ApprovalDialog() {
           onClick={handleApprove}
           className="w-full py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
         >
-          {pendingApproval.type === 'connect' ? 'Connect' : 'Confirm'}
+          {pendingApproval.type === 'connect' ? t.approval.approve : t.common.confirm}
         </button>
         <button
           onClick={handleReject}
           className="w-full py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors"
         >
-          Reject
+          {t.approval.reject}
         </button>
       </div>
     </div>
   );
 }
 
-function ConnectApproval(_props: { origin: string; data: ConnectRequest }) {
+function ConnectApproval({ t }: { origin: string; data: ConnectRequest; t: ReturnType<typeof useTranslation> }) {
   return (
     <div className="text-center">
       <div className="w-16 h-16 bg-qfc-100 rounded-full flex items-center justify-center mx-auto mb-4">
         <Globe size={32} className="text-qfc-600" />
       </div>
 
-      <h2 className="text-xl font-bold text-gray-800 mb-2">Connect to this site?</h2>
+      <h2 className="text-xl font-bold text-gray-800 mb-2">{t.approval.connectionRequest}</h2>
       <p className="text-gray-500 mb-6">
-        This site wants to connect to your wallet and view your account address.
+        {t.approval.wantsToConnect}
       </p>
 
       <div className="bg-white rounded-xl p-4 text-left">
-        <h3 className="font-medium text-gray-800 mb-2">This site will be able to:</h3>
+        <h3 className="font-medium text-gray-800 mb-2">{t.approval.connectionRequest}:</h3>
         <ul className="space-y-2 text-sm text-gray-600">
           <li className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-            View your wallet address
+            {t.common.address}
           </li>
           <li className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-            View your account balance
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-            Request transaction approval
+            {t.common.balance}
           </li>
         </ul>
       </div>
 
       <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-3">
         <p className="text-sm text-yellow-800">
-          Only connect to sites you trust. You can disconnect anytime from Settings.
+          {t.approval.wantsToConnect}
         </p>
       </div>
     </div>
@@ -118,10 +116,12 @@ function ConnectApproval(_props: { origin: string; data: ConnectRequest }) {
 function TransactionApproval({
   data,
   address,
+  t,
 }: {
   origin: string;
   data: TransactionRequest;
   address: string;
+  t: ReturnType<typeof useTranslation>;
 }) {
   const valueWei = BigInt(data.value || '0');
   const valueEth = Number(valueWei) / 1e18;
@@ -130,27 +130,27 @@ function TransactionApproval({
     <div>
       <div className="flex items-center justify-center gap-2 mb-4">
         <Send size={24} className="text-qfc-600" />
-        <h2 className="text-xl font-bold text-gray-800">Confirm Transaction</h2>
+        <h2 className="text-xl font-bold text-gray-800">{t.approval.transactionRequest}</h2>
       </div>
 
       <div className="bg-white rounded-xl p-4 space-y-3 mb-4">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">From</span>
+          <span className="text-gray-500">{t.approval.from}</span>
           <span className="font-mono">{formatAddress(data.from || address, 8)}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">To</span>
+          <span className="text-gray-500">{t.approval.to}</span>
           <span className="font-mono">{formatAddress(data.to, 8)}</span>
         </div>
         <div className="border-t pt-3">
           <div className="flex justify-between">
-            <span className="text-gray-500">Amount</span>
+            <span className="text-gray-500">{t.approval.value}</span>
             <span className="font-bold text-lg">{valueEth.toFixed(4)} QFC</span>
           </div>
         </div>
         {data.data && data.data !== '0x' && (
           <div className="border-t pt-3">
-            <span className="text-gray-500 text-sm">Contract Interaction</span>
+            <span className="text-gray-500 text-sm">{t.approval.data}</span>
             <div className="bg-gray-50 rounded-lg p-2 mt-1 text-xs font-mono break-all max-h-20 overflow-y-auto">
               {data.data}
             </div>
@@ -162,7 +162,7 @@ function TransactionApproval({
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 flex items-start gap-2">
           <AlertTriangle size={16} className="text-yellow-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-yellow-800">
-            You are about to send {valueEth.toFixed(4)} QFC. Make sure you trust this site.
+            {t.approval.requestsTransaction}
           </p>
         </div>
       )}
@@ -170,20 +170,20 @@ function TransactionApproval({
   );
 }
 
-function SignApproval({ data }: { origin: string; data: SignRequest }) {
+function SignApproval({ data, t }: { origin: string; data: SignRequest; t: ReturnType<typeof useTranslation> }) {
   return (
     <div>
       <div className="flex items-center justify-center gap-2 mb-4">
         <FileText size={24} className="text-qfc-600" />
-        <h2 className="text-xl font-bold text-gray-800">Sign Message</h2>
+        <h2 className="text-xl font-bold text-gray-800">{t.approval.signatureRequest}</h2>
       </div>
 
       <p className="text-gray-500 text-center mb-4">
-        This site is requesting your signature.
+        {t.approval.requestsSignature}
       </p>
 
       <div className="bg-white rounded-xl p-4 mb-4">
-        <span className="text-gray-500 text-sm">Message</span>
+        <span className="text-gray-500 text-sm">{t.approval.message}</span>
         <div className="bg-gray-50 rounded-lg p-3 mt-2 text-sm font-mono break-all max-h-40 overflow-y-auto">
           {data.message}
         </div>
@@ -191,7 +191,7 @@ function SignApproval({ data }: { origin: string; data: SignRequest }) {
 
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
         <p className="text-sm text-blue-800">
-          Signing this message will not cost any gas or initiate a transaction. It's used to verify your identity.
+          {t.approval.requestsSignature}
         </p>
       </div>
     </div>

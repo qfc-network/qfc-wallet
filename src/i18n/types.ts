@@ -1,0 +1,158 @@
+// Supported languages
+export type Language = 'en' | 'zh' | 'ja' | 'ko';
+
+export const LANGUAGES: { code: Language; name: string; nativeName: string }[] = [
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'zh', name: 'Chinese', nativeName: '中文' },
+  { code: 'ja', name: 'Japanese', nativeName: '日本語' },
+  { code: 'ko', name: 'Korean', nativeName: '한국어' },
+];
+
+// Translation keys - nested object structure
+export interface Translations {
+  common: {
+    wallet: string;
+    balance: string;
+    address: string;
+    send: string;
+    receive: string;
+    swap: string;
+    settings: string;
+    back: string;
+    cancel: string;
+    confirm: string;
+    copy: string;
+    copied: string;
+    refresh: string;
+    lock: string;
+    unlock: string;
+    loading: string;
+    error: string;
+    success: string;
+    pending: string;
+    confirmed: string;
+    failed: string;
+    view: string;
+    disconnect: string;
+    active: string;
+    version: string;
+  };
+  home: {
+    totalBalance: string;
+    assets: string;
+    activity: string;
+    noActivity: string;
+    addToken: string;
+    sent: string;
+    received: string;
+    tokenSent: string;
+    tokenReceived: string;
+    contractCall: string;
+  };
+  send: {
+    title: string;
+    recipient: string;
+    recipientPlaceholder: string;
+    amount: string;
+    amountPlaceholder: string;
+    max: string;
+    estimatedGas: string;
+    sendButton: string;
+    sending: string;
+    invalidAddress: string;
+    invalidAmount: string;
+    insufficientBalance: string;
+    transactionSent: string;
+  };
+  receive: {
+    title: string;
+    scanQR: string;
+    yourAddress: string;
+    copyAddress: string;
+  };
+  settings: {
+    title: string;
+    account: string;
+    network: string;
+    chainId: string;
+    rpcUrl: string;
+    explorer: string;
+    connectedSites: string;
+    noConnectedSites: string;
+    about: string;
+    language: string;
+    selectLanguage: string;
+    addressBook: string;
+    security: string;
+    autoLock: string;
+    minutes: string;
+  };
+  createWallet: {
+    title: string;
+    createNew: string;
+    importExisting: string;
+    walletName: string;
+    walletNamePlaceholder: string;
+    password: string;
+    passwordPlaceholder: string;
+    confirmPassword: string;
+    confirmPasswordPlaceholder: string;
+    create: string;
+    import: string;
+    privateKeyOrMnemonic: string;
+    privateKeyPlaceholder: string;
+    passwordMismatch: string;
+    passwordTooShort: string;
+    saveRecoveryPhrase: string;
+    recoveryPhraseWarning: string;
+    iHaveSaved: string;
+    continue: string;
+  };
+  unlock: {
+    title: string;
+    enterPassword: string;
+    passwordPlaceholder: string;
+    unlockButton: string;
+    wrongPassword: string;
+  };
+  token: {
+    addToken: string;
+    tokenAddress: string;
+    tokenAddressPlaceholder: string;
+    name: string;
+    symbol: string;
+    decimals: string;
+    add: string;
+    remove: string;
+    invalidAddress: string;
+    tokenNotFound: string;
+  };
+  approval: {
+    connectionRequest: string;
+    transactionRequest: string;
+    signatureRequest: string;
+    wantsToConnect: string;
+    requestsTransaction: string;
+    requestsSignature: string;
+    from: string;
+    to: string;
+    value: string;
+    data: string;
+    message: string;
+    approve: string;
+    reject: string;
+  };
+  addressBook: {
+    title: string;
+    addContact: string;
+    editContact: string;
+    deleteContact: string;
+    name: string;
+    namePlaceholder: string;
+    address: string;
+    addressPlaceholder: string;
+    save: string;
+    noContacts: string;
+    confirmDelete: string;
+  };
+}

@@ -49,6 +49,7 @@ export const STORAGE_KEYS = {
   TX_HISTORY: 'qfc_tx_history',
   TOKENS: 'qfc_tokens',
   PENDING_APPROVALS: 'qfc_pending_approvals',
+  CONTACTS: 'qfc_contacts',
 } as const;
 
 // Message types

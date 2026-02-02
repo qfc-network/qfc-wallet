@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronLeft, Copy, Check } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useWalletStore } from '../store';
+import { useTranslation } from '../../i18n';
 
 interface ReceiveProps {
   onBack: () => void;
@@ -9,6 +10,7 @@ interface ReceiveProps {
 
 export default function Receive({ onBack }: ReceiveProps) {
   const { currentAddress, network } = useWalletStore();
+  const t = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const copyAddress = async () => {
@@ -29,7 +31,7 @@ export default function Receive({ onBack }: ReceiveProps) {
         >
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-lg font-bold">Receive QFC</h1>
+        <h1 className="text-lg font-bold">{t.receive.title} QFC</h1>
       </div>
 
       {/* Content */}
@@ -54,7 +56,7 @@ export default function Receive({ onBack }: ReceiveProps) {
         {/* Address */}
         <div className="mt-6 w-full max-w-sm">
           <p className="text-sm text-gray-500 text-center mb-2">
-            Your QFC Address
+            {t.receive.yourAddress}
           </p>
           <div className="bg-white rounded-xl p-4">
             <p className="text-sm font-mono break-all text-center text-gray-800">
@@ -75,12 +77,12 @@ export default function Receive({ onBack }: ReceiveProps) {
           {copied ? (
             <>
               <Check size={20} />
-              Copied!
+              {t.common.copied}
             </>
           ) : (
             <>
               <Copy size={20} />
-              Copy Address
+              {t.receive.copyAddress}
             </>
           )}
         </button>
@@ -88,8 +90,7 @@ export default function Receive({ onBack }: ReceiveProps) {
         {/* Warning */}
         <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 w-full max-w-sm">
           <p className="text-sm text-yellow-800 text-center">
-            Only send QFC tokens to this address. Sending other tokens may result
-            in permanent loss.
+            {t.receive.scanQR}
           </p>
         </div>
       </div>

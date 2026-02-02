@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Eye, EyeOff, Copy, Check, ChevronLeft } from 'lucide-react';
 import { walletActions } from '../store';
 import { validatePassword, isValidMnemonic, isValidPrivateKey } from '../../utils/validation';
+import { useTranslation } from '../../i18n';
 
 type Step = 'choice' | 'create' | 'mnemonic' | 'import';
 
 export default function CreateWallet() {
+  const t = useTranslation();
   const [step, setStep] = useState<Step>('choice');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -23,12 +25,12 @@ export default function CreateWallet() {
     // Validate password
     const validation = validatePassword(password);
     if (!validation.valid) {
-      setError(validation.errors[0]);
+      setError(t.createWallet.passwordTooShort);
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t.createWallet.passwordMismatch);
       return;
     }
 
@@ -38,7 +40,7 @@ export default function CreateWallet() {
       setMnemonic(result.mnemonic);
       setStep('mnemonic');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create wallet');
+      setError(err instanceof Error ? err.message : t.common.error);
     } finally {
       setIsLoading(false);
     }
@@ -48,7 +50,7 @@ export default function CreateWallet() {
     setError('');
 
     if (!importValue.trim()) {
-      setError('Please enter a mnemonic phrase or private key');
+      setError(t.createWallet.privateKeyPlaceholder);
       return;
     }
 
@@ -56,12 +58,12 @@ export default function CreateWallet() {
     const words = importValue.trim().split(/\s+/);
     if (words.length >= 12) {
       if (!isValidMnemonic(importValue.trim())) {
-        setError('Invalid mnemonic phrase');
+        setError(t.send.invalidAddress);
         return;
       }
     } else {
       if (!isValidPrivateKey(importValue.trim())) {
-        setError('Invalid private key');
+        setError(t.send.invalidAddress);
         return;
       }
     }
@@ -69,12 +71,12 @@ export default function CreateWallet() {
     // Validate password
     const validation = validatePassword(password);
     if (!validation.valid) {
-      setError(validation.errors[0]);
+      setError(t.createWallet.passwordTooShort);
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t.createWallet.passwordMismatch);
       return;
     }
 
@@ -86,7 +88,7 @@ export default function CreateWallet() {
         password
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import wallet');
+      setError(err instanceof Error ? err.message : t.common.error);
     } finally {
       setIsLoading(false);
     }
@@ -104,9 +106,9 @@ export default function CreateWallet() {
         <span className="text-3xl text-white font-bold">Q</span>
       </div>
 
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">QFC Wallet</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-2">QFC {t.common.wallet}</h1>
       <p className="text-gray-500 text-center mb-8">
-        Your gateway to the QFC Network
+        {t.createWallet.title}
       </p>
 
       <div className="w-full max-w-sm space-y-3">
@@ -114,14 +116,14 @@ export default function CreateWallet() {
           onClick={() => setStep('create')}
           className="w-full py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
         >
-          Create New Wallet
+          {t.createWallet.createNew}
         </button>
 
         <button
           onClick={() => setStep('import')}
           className="w-full py-3 bg-white border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors"
         >
-          Import Existing Wallet
+          {t.createWallet.importExisting}
         </button>
       </div>
     </div>
@@ -134,12 +136,12 @@ export default function CreateWallet() {
         className="flex items-center gap-1 text-gray-500 mb-6"
       >
         <ChevronLeft size={20} />
-        Back
+        {t.common.back}
       </button>
 
-      <h1 className="text-xl font-bold text-gray-800 mb-2">Create New Wallet</h1>
+      <h1 className="text-xl font-bold text-gray-800 mb-2">{t.createWallet.createNew}</h1>
       <p className="text-gray-500 mb-6">
-        Set a strong password to protect your wallet
+        {t.createWallet.passwordTooShort}
       </p>
 
       <div className="space-y-4">
@@ -147,7 +149,7 @@ export default function CreateWallet() {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Wallet name (optional)"
+          placeholder={t.createWallet.walletNamePlaceholder}
           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
         />
 
@@ -156,7 +158,7 @@ export default function CreateWallet() {
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password (8+ characters)"
+            placeholder={t.createWallet.passwordPlaceholder}
             className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl pr-12 focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
           />
           <button
@@ -172,7 +174,7 @@ export default function CreateWallet() {
           type={showPassword ? 'text' : 'password'}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Confirm password"
+          placeholder={t.createWallet.confirmPasswordPlaceholder}
           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
         />
 
@@ -183,7 +185,7 @@ export default function CreateWallet() {
           disabled={isLoading}
           className="w-full py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          {isLoading ? 'Creating...' : 'Create Wallet'}
+          {isLoading ? t.common.loading : t.createWallet.create}
         </button>
       </div>
     </div>
@@ -191,9 +193,9 @@ export default function CreateWallet() {
 
   const renderMnemonic = () => (
     <div className="flex-1 flex flex-col p-6">
-      <h1 className="text-xl font-bold text-gray-800 mb-2">Backup Your Wallet</h1>
+      <h1 className="text-xl font-bold text-gray-800 mb-2">{t.createWallet.saveRecoveryPhrase}</h1>
       <p className="text-gray-500 mb-6">
-        Write down these 12 words in order. Never share them with anyone!
+        {t.createWallet.recoveryPhraseWarning}
       </p>
 
       <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
@@ -211,14 +213,13 @@ export default function CreateWallet() {
           className="flex items-center gap-2 text-qfc-600 text-sm"
         >
           {copied ? <Check size={16} /> : <Copy size={16} />}
-          {copied ? 'Copied!' : 'Copy to clipboard'}
+          {copied ? t.common.copied : t.common.copy}
         </button>
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
         <p className="text-yellow-800 text-sm">
-          <strong>Warning:</strong> If you lose these words, you will lose access
-          to your wallet forever. Store them securely!
+          <strong>Warning:</strong> {t.createWallet.recoveryPhraseWarning}
         </p>
       </div>
 
@@ -229,7 +230,7 @@ export default function CreateWallet() {
         }}
         className="w-full py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
       >
-        I've Saved My Recovery Phrase
+        {t.createWallet.iHaveSaved}
       </button>
     </div>
   );
@@ -241,19 +242,19 @@ export default function CreateWallet() {
         className="flex items-center gap-1 text-gray-500 mb-6"
       >
         <ChevronLeft size={20} />
-        Back
+        {t.common.back}
       </button>
 
-      <h1 className="text-xl font-bold text-gray-800 mb-2">Import Wallet</h1>
+      <h1 className="text-xl font-bold text-gray-800 mb-2">{t.createWallet.import}</h1>
       <p className="text-gray-500 mb-6">
-        Enter your 12-word recovery phrase or private key
+        {t.createWallet.privateKeyOrMnemonic}
       </p>
 
       <div className="space-y-4 flex-1">
         <textarea
           value={importValue}
           onChange={(e) => setImportValue(e.target.value)}
-          placeholder="Enter recovery phrase or private key"
+          placeholder={t.createWallet.privateKeyPlaceholder}
           className="w-full h-32 px-4 py-3 bg-white border border-gray-200 rounded-xl resize-none focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
         />
 
@@ -261,7 +262,7 @@ export default function CreateWallet() {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Wallet name (optional)"
+          placeholder={t.createWallet.walletNamePlaceholder}
           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
         />
 
@@ -270,7 +271,7 @@ export default function CreateWallet() {
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Set a password"
+            placeholder={t.createWallet.passwordPlaceholder}
             className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl pr-12 focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
           />
           <button
@@ -286,7 +287,7 @@ export default function CreateWallet() {
           type={showPassword ? 'text' : 'password'}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Confirm password"
+          placeholder={t.createWallet.confirmPasswordPlaceholder}
           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
         />
 
@@ -298,7 +299,7 @@ export default function CreateWallet() {
         disabled={isLoading}
         className="w-full py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
       >
-        {isLoading ? 'Importing...' : 'Import Wallet'}
+        {isLoading ? t.common.loading : t.createWallet.import}
       </button>
     </div>
   );
