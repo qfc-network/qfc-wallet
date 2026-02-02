@@ -12,6 +12,8 @@ let currentNetworkKey: NetworkKey = 'testnet';
 let pendingApproval: PendingApproval | null = null;
 let approvalResolvers: Map<string, { resolve: (value: boolean) => void }> = new Map();
 const contentPorts: Map<chrome.runtime.Port, string> = new Map();
+const logFilters: Map<string, { filter: Record<string, unknown>; lastBlock: number }> = new Map();
+let nextFilterId = 1;
 
 // Initialize wallet controller
 const walletController = new WalletController(NETWORKS[currentNetworkKey]);
@@ -262,6 +264,40 @@ async function handleMessage(
       case 'eth_getLogs': {
         const [filter] = params as [Record<string, unknown>];
         result = await walletController.getLogs(filter);
+        break;
+      }
+
+      case 'eth_newFilter': {
+        const [filter] = params as [Record<string, unknown>];
+        const latestBlock = await walletController.getBlockNumber();
+        const fromBlock = normalizeBlockTag(filter?.fromBlock, latestBlock);
+        const id = '0x' + (nextFilterId++).toString(16);
+        logFilters.set(id, { filter: { ...filter }, lastBlock: fromBlock });
+        result = id;
+        break;
+      }
+
+      case 'eth_getFilterChanges': {
+        const [filterId] = params as [string];
+        const entry = logFilters.get(filterId);
+        if (!entry) {
+          throw { code: RPC_ERRORS.INVALID_PARAMS.code, message: 'Unknown filter' };
+        }
+        const latestBlock = await walletController.getBlockNumber();
+        const fromBlock = Math.min(entry.lastBlock + 1, latestBlock);
+        const logs = await walletController.getLogs({
+          ...entry.filter,
+          fromBlock: '0x' + fromBlock.toString(16),
+          toBlock: '0x' + latestBlock.toString(16),
+        });
+        entry.lastBlock = latestBlock;
+        result = logs;
+        break;
+      }
+
+      case 'eth_uninstallFilter': {
+        const [filterId] = params as [string];
+        result = logFilters.delete(filterId);
         break;
       }
 
@@ -833,6 +869,21 @@ async function handleMessage(
 
 function getSenderOrigin(sender?: chrome.runtime.MessageSender): string {
   return sender?.origin || sender?.url || 'unknown';
+}
+
+function normalizeBlockTag(tag: unknown, latestBlock: number): number {
+  if (typeof tag === 'string') {
+    if (tag === 'latest' || tag === 'pending') return latestBlock;
+    if (tag === 'earliest') return 0;
+    if (tag.startsWith('0x')) {
+      const parsed = parseInt(tag, 16);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    const parsed = Number(tag);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (typeof tag === 'number' && Number.isFinite(tag)) return tag;
+  return latestBlock;
 }
 
 function findNetworkKeyByChainId(chainId: string): NetworkKey | null {
