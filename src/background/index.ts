@@ -404,6 +404,12 @@ async function handleMessage(
         break;
       }
 
+      case 'wallet_reportActivity': {
+        walletController.touchActivity();
+        result = true;
+        break;
+      }
+
       case 'wallet_exportPrivateKey': {
         const [password, address] = params as [string, string | undefined];
         result = await walletController.exportPrivateKey(password, address);
@@ -822,11 +828,27 @@ async function updatePendingTransactions() {
 // Keep service worker alive and update transactions
 chrome.alarms.create('keepAlive', { periodInMinutes: 1 });
 chrome.alarms.create('updateTransactions', { periodInMinutes: 0.5 }); // Every 30 seconds
+chrome.alarms.create('inactivityCheck', { periodInMinutes: 1 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'keepAlive') {
     console.log('[QFC] Service worker heartbeat');
   } else if (alarm.name === 'updateTransactions') {
     updatePendingTransactions();
+  } else if (alarm.name === 'inactivityCheck') {
+    try {
+      if (walletController.shouldLockForInactivity(LOCK_TIMEOUT_MS)) {
+        walletController.lock();
+        notifyAccountsChanged().catch((error) => {
+          console.error('[QFC] Failed to emit accountsChanged:', error);
+        });
+      }
+    } catch (error) {
+      console.error('[QFC] Inactivity check failed:', error);
+    }
   }
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  ensureInitialized();
 });

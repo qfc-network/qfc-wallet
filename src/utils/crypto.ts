@@ -4,15 +4,43 @@ import CryptoJS from 'crypto-js';
  * Encrypt text using AES
  */
 export function encrypt(text: string, password: string): string {
-  return CryptoJS.AES.encrypt(text, password).toString();
+  const salt = CryptoJS.lib.WordArray.random(16);
+  const iv = CryptoJS.lib.WordArray.random(16);
+  const key = CryptoJS.PBKDF2(password, salt, {
+    keySize: 256 / 32,
+    iterations: 100000,
+    hasher: CryptoJS.algo.SHA256,
+  });
+  const ciphertext = CryptoJS.AES.encrypt(text, key, { iv }).toString();
+  return `v2:${salt.toString(CryptoJS.enc.Base64)}:${iv.toString(
+    CryptoJS.enc.Base64
+  )}:${ciphertext}`;
 }
 
 /**
  * Decrypt ciphertext using AES
  */
 export function decrypt(ciphertext: string, password: string): string {
-  const bytes = CryptoJS.AES.decrypt(ciphertext, password);
-  const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+  let decrypted = '';
+
+  if (ciphertext.startsWith('v2:')) {
+    const parts = ciphertext.split(':');
+    if (parts.length !== 4) {
+      throw new Error('Decryption failed - invalid data');
+    }
+    const salt = CryptoJS.enc.Base64.parse(parts[1]);
+    const iv = CryptoJS.enc.Base64.parse(parts[2]);
+    const key = CryptoJS.PBKDF2(password, salt, {
+      keySize: 256 / 32,
+      iterations: 100000,
+      hasher: CryptoJS.algo.SHA256,
+    });
+    const bytes = CryptoJS.AES.decrypt(parts[3], key, { iv });
+    decrypted = bytes.toString(CryptoJS.enc.Utf8);
+  } else {
+    const bytes = CryptoJS.AES.decrypt(ciphertext, password);
+    decrypted = bytes.toString(CryptoJS.enc.Utf8);
+  }
 
   if (!decrypted) {
     throw new Error('Decryption failed - wrong password');

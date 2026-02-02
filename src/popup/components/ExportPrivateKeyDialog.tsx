@@ -21,6 +21,7 @@ export default function ExportPrivateKeyDialog({
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
     if (!open) {
@@ -30,6 +31,7 @@ export default function ExportPrivateKeyDialog({
       setError('');
       setCopied(false);
       setIsLoading(false);
+      setCountdown(0);
     }
   }, [open]);
 
@@ -45,6 +47,21 @@ export default function ExportPrivateKeyDialog({
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!privateKey) return;
+    setCountdown(5);
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [privateKey]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(privateKey);
@@ -114,10 +131,11 @@ export default function ExportPrivateKeyDialog({
 
               <button
                 onClick={handleCopy}
+                disabled={countdown > 0}
                 className="flex items-center gap-2 text-qfc-600 text-sm"
               >
                 {copied ? <Check size={16} /> : <Copy size={16} />}
-                {copied ? t.common.copied : t.common.copy}
+                {copied ? t.common.copied : countdown > 0 ? `${t.common.copy} (${countdown})` : t.common.copy}
               </button>
 
               <button

@@ -13,6 +13,38 @@ export default function App() {
     walletActions.initialize();
   }, []);
 
+  useEffect(() => {
+    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const report = () => {
+      if (throttleTimer) return;
+      throttleTimer = setTimeout(() => {
+        throttleTimer = null;
+      }, 5000);
+      walletActions.reportActivity();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        report();
+      }
+    };
+
+    window.addEventListener('focus', report);
+    window.addEventListener('click', report);
+    window.addEventListener('keydown', report);
+    window.addEventListener('mousemove', report);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('focus', report);
+      window.removeEventListener('click', report);
+      window.removeEventListener('keydown', report);
+      window.removeEventListener('mousemove', report);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
   if (isLoading) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-qfc-50 to-blue-50">

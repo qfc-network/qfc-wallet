@@ -12,6 +12,7 @@ export class WalletController {
   private provider: ethers.JsonRpcProvider;
   private network: NetworkConfig;
   private lockTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastActivityAt: number | null = null;
 
   constructor(network: NetworkConfig = DEFAULT_NETWORK) {
     this.network = network;
@@ -134,6 +135,7 @@ export class WalletController {
       }
 
       this.startLockTimer();
+      this.touchActivity();
       return true;
     } catch {
       return false;
@@ -191,6 +193,7 @@ export class WalletController {
     const txResponse = await wallet.sendTransaction(tx);
 
     this.startLockTimer();
+    this.touchActivity();
     return txResponse.hash;
   }
 
@@ -208,6 +211,7 @@ export class WalletController {
     const signature = await wallet.signMessage(message);
 
     this.startLockTimer();
+    this.touchActivity();
     return signature;
   }
 
@@ -228,6 +232,7 @@ export class WalletController {
     const signature = await wallet.signTypedData(domain, types, message);
 
     this.startLockTimer();
+    this.touchActivity();
     return signature;
   }
 
@@ -325,5 +330,16 @@ export class WalletController {
       clearTimeout(this.lockTimer);
       this.lockTimer = null;
     }
+  }
+
+  touchActivity(): void {
+    if (!this.isUnlocked) return;
+    this.lastActivityAt = Date.now();
+    this.startLockTimer();
+  }
+
+  shouldLockForInactivity(inactivityMs: number): boolean {
+    if (!this.isUnlocked || this.lastActivityAt === null) return false;
+    return Date.now() - this.lastActivityAt > inactivityMs;
   }
 }

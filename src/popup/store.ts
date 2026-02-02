@@ -253,6 +253,14 @@ export const walletActions = {
     }
   },
 
+  async reportActivity() {
+    try {
+      await sendMessage('wallet_reportActivity');
+    } catch (error) {
+      console.error('Failed to report activity:', error);
+    }
+  },
+
   async exportPrivateKey(password: string, address?: string) {
     return sendMessage<string>('wallet_exportPrivateKey', [password, address]);
   },
