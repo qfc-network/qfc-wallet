@@ -18,6 +18,7 @@ export default function ExportMnemonicDialog({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [mnemonic, setMnemonic] = useState('');
+  const [showMnemonic, setShowMnemonic] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +29,7 @@ export default function ExportMnemonicDialog({
       setPassword('');
       setShowPassword(false);
       setMnemonic('');
+      setShowMnemonic(false);
       setError('');
       setCopied(false);
       setIsLoading(false);
@@ -41,6 +43,7 @@ export default function ExportMnemonicDialog({
     try {
       const phrase = await walletActions.exportMnemonic(password, address || undefined);
       setMnemonic(phrase);
+      setShowMnemonic(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
     } finally {
@@ -130,11 +133,18 @@ export default function ExportMnemonicDialog({
                   {mnemonic.split(' ').map((word, i) => (
                     <div key={i} className="bg-white px-2 py-1.5 rounded text-sm border border-gray-200">
                       <span className="text-gray-400 mr-1">{i + 1}.</span>
-                      {word}
+                      {showMnemonic ? word : '••••'}
                     </div>
                   ))}
                 </div>
               </div>
+
+              <button
+                onClick={() => setShowMnemonic(!showMnemonic)}
+                className="text-sm text-qfc-600 hover:underline"
+              >
+                {showMnemonic ? t.common.hide : t.common.show}
+              </button>
 
               <button
                 onClick={handleCopy}

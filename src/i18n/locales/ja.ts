@@ -14,6 +14,8 @@ export const ja: Translations = {
     confirm: '確認',
     copy: 'コピー',
     copied: 'コピーしました！',
+    show: '表示',
+    hide: '非表示',
     refresh: '更新',
     lock: 'ロック',
     unlock: 'ロック解除',

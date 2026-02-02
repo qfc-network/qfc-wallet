@@ -14,6 +14,8 @@ export const zh: Translations = {
     confirm: '确认',
     copy: '复制',
     copied: '已复制！',
+    show: '显示',
+    hide: '隐藏',
     refresh: '刷新',
     lock: '锁定',
     unlock: '解锁',

@@ -23,6 +23,8 @@ export interface Translations {
     confirm: string;
     copy: string;
     copied: string;
+    show: string;
+    hide: string;
     refresh: string;
     lock: string;
     unlock: string;

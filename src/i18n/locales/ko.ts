@@ -14,6 +14,8 @@ export const ko: Translations = {
     confirm: '확인',
     copy: '복사',
     copied: '복사됨!',
+    show: '표시',
+    hide: '숨기기',
     refresh: '새로고침',
     lock: '잠금',
     unlock: '잠금 해제',

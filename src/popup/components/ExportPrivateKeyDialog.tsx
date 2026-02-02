@@ -18,6 +18,7 @@ export default function ExportPrivateKeyDialog({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [privateKey, setPrivateKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +29,7 @@ export default function ExportPrivateKeyDialog({
       setPassword('');
       setShowPassword(false);
       setPrivateKey('');
+      setShowKey(false);
       setError('');
       setCopied(false);
       setIsLoading(false);
@@ -41,6 +43,7 @@ export default function ExportPrivateKeyDialog({
     try {
       const key = await walletActions.exportPrivateKey(password, address || undefined);
       setPrivateKey(key);
+      setShowKey(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.common.error);
     } finally {
@@ -126,8 +129,17 @@ export default function ExportPrivateKeyDialog({
             <div className="space-y-3">
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
                 <div className="text-xs text-gray-500 mb-1">{t.settings.privateKey}</div>
-                <div className="font-mono text-sm break-all">{privateKey}</div>
+                <div className="font-mono text-sm break-all select-all">
+                  {showKey ? privateKey : privateKey.replace(/./g, '•')}
+                </div>
               </div>
+
+              <button
+                onClick={() => setShowKey(!showKey)}
+                className="text-sm text-qfc-600 hover:underline"
+              >
+                {showKey ? t.common.hide : t.common.show}
+              </button>
 
               <button
                 onClick={handleCopy}

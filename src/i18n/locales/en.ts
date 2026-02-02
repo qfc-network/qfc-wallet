@@ -14,6 +14,8 @@ export const en: Translations = {
     confirm: 'Confirm',
     copy: 'Copy',
     copied: 'Copied!',
+    show: 'Show',
+    hide: 'Hide',
     refresh: 'Refresh',
     lock: 'Lock',
     unlock: 'Unlock',
