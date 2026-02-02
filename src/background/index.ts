@@ -11,6 +11,7 @@ import { ERC20_ABI } from '../types/token';
 let currentNetworkKey: NetworkKey = 'testnet';
 let pendingApproval: PendingApproval | null = null;
 let approvalResolvers: Map<string, { resolve: (value: boolean) => void }> = new Map();
+const contentPorts: Map<chrome.runtime.Port, string> = new Map();
 
 // Initialize wallet controller
 const walletController = new WalletController(NETWORKS[currentNetworkKey]);
@@ -64,6 +65,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.runtime.onConnect.addListener((port) => {
   console.log('[QFC] New connection from:', port.name);
 
+  if (port.name === 'qfc-content') {
+    const origin = getSenderOrigin(port.sender);
+    contentPorts.set(port, origin);
+    notifyPortInitialState(port, origin).catch((error) => {
+      console.error('[QFC] Failed to notify initial state:', error);
+    });
+
+    port.onDisconnect.addListener(() => {
+      contentPorts.delete(port);
+    });
+  }
+
   port.onMessage.addListener(async (message) => {
     try {
       const response = await handleMessage(message, port.sender);
@@ -113,6 +126,9 @@ async function handleMessage(
           }
           await walletStorage.addConnectedSite(senderOrigin, account);
           result = [account];
+          notifyAccountsChangedForOrigin(senderOrigin).catch((error) => {
+            console.error('[QFC] Failed to emit accountsChanged:', error);
+          });
         } else if (!walletController.hasWallets()) {
           throw new Error('No wallet found. Please create a wallet first.');
         } else {
@@ -255,24 +271,36 @@ async function handleMessage(
       case 'wallet_createWallet': {
         const [name, password] = params as [string, string];
         result = await walletController.createWallet(name, password);
+        notifyAccountsChanged().catch((error) => {
+          console.error('[QFC] Failed to emit accountsChanged:', error);
+        });
         break;
       }
 
       case 'wallet_importWallet': {
         const [keyOrMnemonic, name, password] = params as [string, string, string];
         result = await walletController.importWallet(keyOrMnemonic, name, password);
+        notifyAccountsChanged().catch((error) => {
+          console.error('[QFC] Failed to emit accountsChanged:', error);
+        });
         break;
       }
 
       case 'wallet_unlock': {
         const [password] = params as [string];
         result = await walletController.unlock(password);
+        notifyAccountsChanged().catch((error) => {
+          console.error('[QFC] Failed to emit accountsChanged:', error);
+        });
         break;
       }
 
       case 'wallet_lock': {
         walletController.lock();
         result = true;
+        notifyAccountsChanged().catch((error) => {
+          console.error('[QFC] Failed to emit accountsChanged:', error);
+        });
         break;
       }
 
@@ -295,6 +323,9 @@ async function handleMessage(
         const [address] = params as [string];
         await walletController.switchAccount(address);
         result = true;
+        notifyAccountsChanged().catch((error) => {
+          console.error('[QFC] Failed to emit accountsChanged:', error);
+        });
         break;
       }
 
@@ -313,6 +344,9 @@ async function handleMessage(
           walletController.setNetwork(NETWORKS[networkKey]);
           await networkStorage.setCurrentNetwork(networkKey);
           result = true;
+          notifyChainChanged().catch((error) => {
+            console.error('[QFC] Failed to emit chainChanged:', error);
+          });
         } else {
           throw new Error('Unknown network');
         }
@@ -497,6 +531,69 @@ async function handleMessage(
       },
     };
   }
+}
+
+function getSenderOrigin(sender?: chrome.runtime.MessageSender): string {
+  return sender?.origin || sender?.url || 'unknown';
+}
+
+function notifyPort(port: chrome.runtime.Port, method: string, params: unknown[]) {
+  port.postMessage({
+    type: 'QFC_NOTIFICATION',
+    payload: { method, params },
+  });
+}
+
+async function notifyPortInitialState(port: chrome.runtime.Port, origin: string) {
+  await ensureInitialized();
+  const account = walletController.getCurrentAccount();
+  const network = walletController.getNetwork();
+
+  if (account) {
+    const isConnected = await walletStorage.isConnected(origin, account);
+    notifyPort(port, 'accountsChanged', isConnected ? [account] : []);
+  } else {
+    notifyPort(port, 'accountsChanged', []);
+  }
+
+  notifyPort(port, 'chainChanged', network.chainIdHex);
+}
+
+async function notifyAccountsChanged() {
+  await ensureInitialized();
+  const account = walletController.getCurrentAccount();
+
+  await Promise.all(
+    Array.from(contentPorts.entries()).map(async ([port, origin]) => {
+      const isConnected = account ? await walletStorage.isConnected(origin, account) : false;
+      notifyPort(port, 'accountsChanged', isConnected && account ? [account] : []);
+    })
+  );
+}
+
+async function notifyAccountsChangedForOrigin(origin: string) {
+  await ensureInitialized();
+  const account = walletController.getCurrentAccount();
+
+  await Promise.all(
+    Array.from(contentPorts.entries())
+      .filter(([, portOrigin]) => portOrigin === origin)
+      .map(async ([port]) => {
+        const isConnected = account ? await walletStorage.isConnected(origin, account) : false;
+        notifyPort(port, 'accountsChanged', isConnected && account ? [account] : []);
+      })
+  );
+}
+
+async function notifyChainChanged() {
+  await ensureInitialized();
+  const network = walletController.getNetwork();
+
+  await Promise.all(
+    Array.from(contentPorts.keys()).map(async (port) => {
+      notifyPort(port, 'chainChanged', network.chainIdHex);
+    })
+  );
 }
 
 // Request approval from popup

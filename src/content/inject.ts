@@ -24,6 +24,17 @@ function connect() {
   port = chrome.runtime.connect({ name: 'qfc-content' });
 
   port.onMessage.addListener((message) => {
+    if (message?.type === 'QFC_NOTIFICATION') {
+      window.postMessage(
+        {
+          type: 'QFC_NOTIFICATION',
+          payload: message.payload,
+        },
+        '*'
+      );
+      return;
+    }
+
     // Forward response to page
     window.postMessage(
       {
@@ -44,6 +55,18 @@ function connect() {
 }
 
 connect();
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === 'QFC_NOTIFICATION') {
+    window.postMessage(
+      {
+        type: 'QFC_NOTIFICATION',
+        payload: message.payload,
+      },
+      '*'
+    );
+  }
+});
 
 // Listen for messages from the injected provider
 window.addEventListener('message', (event) => {
