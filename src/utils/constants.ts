@@ -62,3 +62,13 @@ export const MESSAGE_TYPES = {
   APPROVAL_REQUEST: 'QFC_APPROVAL_REQUEST',
   APPROVAL_RESPONSE: 'QFC_APPROVAL_RESPONSE',
 } as const;
+
+export const TOKEN_LOGOS: Record<string, string> = {
+  QFC: '/icons/qfc.svg',
+  ETH: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+  WETH: 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
+  BTC: 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+  WBTC: 'https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png',
+  USDT: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+  USDC: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
+};

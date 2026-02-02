@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink, User } from 'lucide-react';
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
-import { NetworkKey } from '../../utils/constants';
+import { NetworkKey, TOKEN_LOGOS } from '../../utils/constants';
 import { calculateUsdValue, refreshPrices } from '../../utils/prices';
 import { useTranslation } from '../../i18n';
 import SendPage from './Send';
@@ -419,14 +419,21 @@ function AssetItem({
   isToken?: boolean;
   onSend?: () => void;
 }) {
+  const logo = TOKEN_LOGOS[symbol.toUpperCase()];
   return (
     <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
-          isToken ? 'bg-gradient-to-br from-green-400 to-emerald-500' : 'bg-gradient-to-br from-qfc-400 to-blue-400'
-        }`}>
-          {symbol.charAt(0)}
-        </div>
+        {logo ? (
+          <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center overflow-hidden">
+            <img src={logo} alt={symbol} className="w-full h-full object-contain" />
+          </div>
+        ) : (
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+            isToken ? 'bg-gradient-to-br from-green-400 to-emerald-500' : 'bg-gradient-to-br from-qfc-400 to-blue-400'
+          }`}>
+            {symbol.charAt(0)}
+          </div>
+        )}
         <div>
           <div className="font-semibold">{name}</div>
           <div className="text-sm text-gray-500">${value}</div>
