@@ -167,6 +167,32 @@ export class WalletController {
     await this.saveWallets();
   }
 
+  async renameAccount(address: string, name: string): Promise<void> {
+    const wallet = this.wallets.find((w) => w.address === address);
+    if (!wallet) {
+      throw new Error('Wallet not found');
+    }
+    wallet.name = name;
+    await this.saveWallets();
+  }
+
+  async removeAccount(address: string): Promise<void> {
+    const index = this.wallets.findIndex((w) => w.address === address);
+    if (index === -1) {
+      throw new Error('Wallet not found');
+    }
+    if (this.wallets.length <= 1) {
+      throw new Error('Cannot remove the last account');
+    }
+
+    const wasCurrent = this.currentWallet?.address === address;
+    this.wallets.splice(index, 1);
+    if (wasCurrent) {
+      this.currentWallet = this.wallets[0] || null;
+    }
+    await this.saveWallets();
+  }
+
   getAllAccounts(): Wallet[] {
     return this.wallets.map((w) => ({
       ...w,

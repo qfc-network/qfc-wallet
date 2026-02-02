@@ -29,6 +29,9 @@ export const zh: Translations = {
     disconnect: '断开连接',
     active: '当前',
     switch: '切换',
+    rename: '重命名',
+    remove: '移除',
+    save: '保存',
     version: '版本',
   },
   home: {

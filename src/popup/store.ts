@@ -305,6 +305,35 @@ export const walletActions = {
     }
   },
 
+  async renameAccount(address: string, name: string) {
+    const store = useWalletStore.getState();
+    try {
+      await sendMessage('wallet_renameAccount', [address, name]);
+      const wallets = await sendMessage<Wallet[]>('wallet_getAllAccounts');
+      store.setWallets(wallets);
+    } catch (error) {
+      console.error('Failed to rename account:', error);
+    }
+  },
+
+  async removeAccount(address: string) {
+    const store = useWalletStore.getState();
+    try {
+      await sendMessage('wallet_removeAccount', [address]);
+      const wallets = await sendMessage<Wallet[]>('wallet_getAllAccounts');
+      store.setWallets(wallets);
+      if (wallets.length > 0 && store.currentAddress === address) {
+        const nextAddress = wallets[0].address;
+        store.setCurrentAddress(nextAddress);
+        await walletActions.refreshBalance(nextAddress);
+        await walletActions.loadTransactions(nextAddress);
+        await walletActions.loadTokens(nextAddress);
+      }
+    } catch (error) {
+      console.error('Failed to remove account:', error);
+    }
+  },
+
   async switchNetwork(networkKey: NetworkKey) {
     const store = useWalletStore.getState();
 

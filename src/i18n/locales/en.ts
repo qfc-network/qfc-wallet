@@ -29,6 +29,9 @@ export const en: Translations = {
     disconnect: 'Disconnect',
     active: 'Active',
     switch: 'Switch',
+    rename: 'Rename',
+    remove: 'Remove',
+    save: 'Save',
     version: 'Version',
   },
   home: {

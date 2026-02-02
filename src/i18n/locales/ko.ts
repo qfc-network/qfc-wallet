@@ -29,6 +29,9 @@ export const ko: Translations = {
     disconnect: '연결 해제',
     active: '활성',
     switch: '전환',
+    rename: '이름 변경',
+    remove: '삭제',
+    save: '저장',
     version: '버전',
   },
   home: {

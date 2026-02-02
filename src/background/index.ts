@@ -526,6 +526,23 @@ async function handleMessage(
         break;
       }
 
+      case 'wallet_renameAccount': {
+        const [address, name] = params as [string, string];
+        await walletController.renameAccount(address, name);
+        result = true;
+        break;
+      }
+
+      case 'wallet_removeAccount': {
+        const [address] = params as [string];
+        await walletController.removeAccount(address);
+        result = true;
+        notifyAccountsChanged().catch((error) => {
+          console.error('[QFC] Failed to emit accountsChanged:', error);
+        });
+        break;
+      }
+
       case 'wallet_getNetwork': {
         result = {
           network: walletController.getNetwork(),

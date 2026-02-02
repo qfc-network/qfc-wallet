@@ -29,6 +29,9 @@ export const ja: Translations = {
     disconnect: '切断',
     active: 'アクティブ',
     switch: '切り替え',
+    rename: '名前変更',
+    remove: '削除',
+    save: '保存',
     version: 'バージョン',
   },
   home: {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, Trash2, ExternalLink, Globe, ChevronDown, ChevronRight, BookUser, Plus } from 'lucide-react';
+import { ChevronLeft, Trash2, ExternalLink, Globe, ChevronDown, ChevronRight, BookUser, Plus, Pencil } from 'lucide-react';
 import { useWalletStore, sendMessage, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { useI18n, LANGUAGES } from '../../i18n';
@@ -23,6 +23,8 @@ export default function Settings({ onBack }: SettingsProps) {
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [showExportPrivateKey, setShowExportPrivateKey] = useState(false);
   const [showExportMnemonic, setShowExportMnemonic] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   const loadConnectedSites = async () => {
     try {
@@ -48,6 +50,18 @@ export default function Settings({ onBack }: SettingsProps) {
   const handleLanguageChange = async (lang: Language) => {
     await setLanguage(lang);
     setShowLangMenu(false);
+  };
+
+  const startRename = (address: string, name: string) => {
+    setEditingAddress(address);
+    setEditingName(name);
+  };
+
+  const submitRename = async () => {
+    if (!editingAddress || !editingName.trim()) return;
+    await walletActions.renameAccount(editingAddress, editingName.trim());
+    setEditingAddress(null);
+    setEditingName('');
   };
 
   const currentLang = LANGUAGES.find((l) => l.code === language);
@@ -106,7 +120,23 @@ export default function Settings({ onBack }: SettingsProps) {
                 }`}
               >
                 <div>
-                  <div className="font-medium">{wallet.name}</div>
+                  {editingAddress === wallet.address ? (
+                    <input
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      className="w-full px-2 py-1 rounded-md border border-gray-200 text-sm focus:ring-2 focus:ring-qfc-500 focus:border-transparent"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') submitRename();
+                        if (e.key === 'Escape') {
+                          setEditingAddress(null);
+                          setEditingName('');
+                        }
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <div className="font-medium">{wallet.name}</div>
+                  )}
                   <div className="text-sm text-gray-500 font-mono">
                     {formatAddress(wallet.address, 8)}
                   </div>
@@ -116,12 +146,41 @@ export default function Settings({ onBack }: SettingsProps) {
                     {t.common.active}
                   </span>
                 ) : (
-                  <button
-                    onClick={() => walletActions.switchAccount(wallet.address)}
-                    className="text-xs text-qfc-600 hover:underline"
-                  >
-                    {t.common.switch}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {editingAddress === wallet.address ? (
+                      <button
+                        onClick={submitRename}
+                        className="text-xs text-qfc-600 hover:underline"
+                      >
+                        {t.common.save}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => walletActions.switchAccount(wallet.address)}
+                        className="text-xs text-qfc-600 hover:underline"
+                      >
+                        {t.common.switch}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => startRename(wallet.address, wallet.name)}
+                      className="p-1 text-gray-500 hover:text-gray-700"
+                      title={t.common.rename}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(t.addressBook.confirmDelete)) {
+                          walletActions.removeAccount(wallet.address);
+                        }
+                      }}
+                      className="p-1 text-red-500 hover:text-red-600"
+                      title={t.common.remove}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

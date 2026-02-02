@@ -38,6 +38,9 @@ export interface Translations {
     disconnect: string;
     active: string;
     switch: string;
+    rename: string;
+    remove: string;
+    save: string;
     version: string;
   };
   home: {
