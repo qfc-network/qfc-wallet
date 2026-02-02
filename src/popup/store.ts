@@ -305,6 +305,23 @@ export const walletActions = {
     }
   },
 
+  async addDerivedAccount(name?: string) {
+    const store = useWalletStore.getState();
+    try {
+      const wallet = await sendMessage<Wallet>('wallet_addDerivedAccount', [name]);
+      const wallets = await sendMessage<Wallet[]>('wallet_getAllAccounts');
+      store.setWallets(wallets);
+      store.setCurrentAddress(wallet.address);
+      await walletActions.refreshBalance(wallet.address);
+      await walletActions.loadTransactions(wallet.address);
+      await walletActions.loadTokens(wallet.address);
+      return wallet;
+    } catch (error) {
+      console.error('Failed to add derived account:', error);
+      throw error;
+    }
+  },
+
   async renameAccount(address: string, name: string) {
     const store = useWalletStore.getState();
     try {

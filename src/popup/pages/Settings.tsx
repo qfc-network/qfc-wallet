@@ -8,6 +8,7 @@ import AddressBook from './AddressBook';
 import CreateAccountDialog from '../components/CreateAccountDialog';
 import ExportPrivateKeyDialog from '../components/ExportPrivateKeyDialog';
 import ExportMnemonicDialog from '../components/ExportMnemonicDialog';
+import AddDerivedAccountDialog from '../components/AddDerivedAccountDialog';
 
 interface SettingsProps {
   onBack: () => void;
@@ -25,6 +26,7 @@ export default function Settings({ onBack }: SettingsProps) {
   const [showExportMnemonic, setShowExportMnemonic] = useState(false);
   const [editingAddress, setEditingAddress] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [showAddDerivedAccount, setShowAddDerivedAccount] = useState(false);
 
   const loadConnectedSites = async () => {
     try {
@@ -76,6 +78,10 @@ export default function Settings({ onBack }: SettingsProps) {
         open={showCreateAccount}
         onClose={() => setShowCreateAccount(false)}
       />
+      <AddDerivedAccountDialog
+        open={showAddDerivedAccount}
+        onClose={() => setShowAddDerivedAccount(false)}
+      />
       <ExportPrivateKeyDialog
         open={showExportPrivateKey}
         onClose={() => setShowExportPrivateKey(false)}
@@ -109,6 +115,13 @@ export default function Settings({ onBack }: SettingsProps) {
             >
               <Plus size={16} />
               {t.createWallet.createNew}
+            </button>
+            <button
+              onClick={() => setShowAddDerivedAccount(true)}
+              className="flex items-center gap-1 text-sm text-qfc-600 hover:underline"
+            >
+              <Plus size={16} />
+              {t.settings.addDerivedAccount}
             </button>
           </div>
           <div className="space-y-2">

@@ -99,6 +99,8 @@ export const zh: Translations = {
     exportMnemonic: '导出助记词',
     mnemonicWarning: '请勿分享助记词，任何人拿到助记词都可转走资产。',
     mnemonic: '助记词',
+    addDerivedAccount: '添加派生账户',
+    derivedAccountHint: '使用助记词创建新的账户。',
   },
   createWallet: {
     title: '欢迎使用 QFC 钱包',

@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { encrypt, decrypt, isLegacyCiphertext } from '../utils/crypto';
+import { encrypt, decrypt, isLegacyCiphertext, hashString } from '../utils/crypto';
 import { walletStorage } from '../utils/storage';
 import { DEFAULT_NETWORK, LOCK_TIMEOUT_MS } from '../utils/constants';
 import type { Wallet, CreateWalletResult, NetworkConfig } from '../types/wallet';
@@ -51,11 +51,14 @@ export class WalletController {
     const encryptedMnemonic = wallet.mnemonic?.phrase
       ? encrypt(wallet.mnemonic.phrase, password)
       : undefined;
+    const mnemonicId = wallet.mnemonic?.phrase ? hashString(wallet.mnemonic.phrase) : undefined;
 
     const newWallet: Wallet = {
       address: wallet.address,
       encryptedPrivateKey,
       encryptedMnemonic,
+      mnemonicId,
+      hdIndex: wallet.mnemonic?.phrase ? 0 : undefined,
       name: name || `Account ${this.wallets.length + 1}`,
       createdAt: Date.now(),
     };
@@ -81,12 +84,14 @@ export class WalletController {
   ): Promise<string> {
     let wallet: ethers.HDNodeWallet | ethers.Wallet;
     let encryptedMnemonic: string | undefined;
+    let mnemonicId: string | undefined;
 
     // Determine if it's a mnemonic or private key
     if (privateKeyOrMnemonic.trim().split(/\s+/).length >= 12) {
       const phrase = privateKeyOrMnemonic.trim();
       wallet = ethers.Wallet.fromPhrase(phrase);
       encryptedMnemonic = encrypt(phrase, password);
+      mnemonicId = hashString(phrase);
     } else {
       const key = privateKeyOrMnemonic.startsWith('0x')
         ? privateKeyOrMnemonic
@@ -105,6 +110,8 @@ export class WalletController {
       address: wallet.address,
       encryptedPrivateKey,
       encryptedMnemonic,
+      mnemonicId,
+      hdIndex: encryptedMnemonic ? 0 : undefined,
       name: name || `Imported ${this.wallets.length + 1}`,
       createdAt: Date.now(),
     };
@@ -165,6 +172,66 @@ export class WalletController {
 
     this.currentWallet = wallet;
     await this.saveWallets();
+  }
+
+  async addDerivedAccount(name?: string): Promise<Wallet> {
+    if (!this.isUnlocked || !this.password) {
+      throw new Error('Wallet is locked');
+    }
+    if (!this.currentWallet?.encryptedMnemonic) {
+      throw new Error('No recovery phrase available');
+    }
+
+    const phrase = decrypt(this.currentWallet.encryptedMnemonic, this.password);
+    const mnemonicId = hashString(phrase);
+
+    if (this.currentWallet.hdIndex === undefined) {
+      this.currentWallet.hdIndex = 0;
+      this.currentWallet.mnemonicId = mnemonicId;
+    }
+
+    let maxIndex = -1;
+    for (const wallet of this.wallets) {
+      if (wallet.encryptedMnemonic && !wallet.mnemonicId) {
+        try {
+          const walletPhrase = decrypt(wallet.encryptedMnemonic, this.password);
+          if (hashString(walletPhrase) === mnemonicId) {
+            wallet.mnemonicId = mnemonicId;
+            if (wallet.hdIndex === undefined) {
+              wallet.hdIndex = 0;
+            }
+          }
+        } catch {
+          // ignore wallets we can't decrypt
+        }
+      }
+      if (wallet.mnemonicId === mnemonicId && typeof wallet.hdIndex === 'number') {
+        maxIndex = Math.max(maxIndex, wallet.hdIndex);
+      }
+    }
+
+    const nextIndex = maxIndex + 1;
+    const path = `m/44'/60'/0'/0/${nextIndex}`;
+    const derived = ethers.Wallet.fromPhrase(phrase, path);
+
+    const encryptedPrivateKey = encrypt(derived.privateKey, this.password);
+    const encryptedMnemonic = encrypt(phrase, this.password);
+
+    const newWallet: Wallet = {
+      address: derived.address,
+      encryptedPrivateKey,
+      encryptedMnemonic,
+      mnemonicId,
+      hdIndex: nextIndex,
+      name: name || `Account ${this.wallets.length + 1}`,
+      createdAt: Date.now(),
+    };
+
+    this.wallets.push(newWallet);
+    this.currentWallet = newWallet;
+    await this.saveWallets();
+
+    return newWallet;
   }
 
   async renameAccount(address: string, name: string): Promise<void> {

@@ -526,6 +526,15 @@ async function handleMessage(
         break;
       }
 
+      case 'wallet_addDerivedAccount': {
+        const [name] = params as [string | undefined];
+        result = await walletController.addDerivedAccount(name);
+        notifyAccountsChanged().catch((error) => {
+          console.error('[QFC] Failed to emit accountsChanged:', error);
+        });
+        break;
+      }
+
       case 'wallet_renameAccount': {
         const [address, name] = params as [string, string];
         await walletController.renameAccount(address, name);

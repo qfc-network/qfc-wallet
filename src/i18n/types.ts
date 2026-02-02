@@ -108,6 +108,8 @@ export interface Translations {
     exportMnemonic: string;
     mnemonicWarning: string;
     mnemonic: string;
+    addDerivedAccount: string;
+    derivedAccountHint: string;
   };
   createWallet: {
     title: string;

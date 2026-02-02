@@ -71,6 +71,10 @@ export function isLegacyCiphertext(ciphertext: string): boolean {
   return !ciphertext.startsWith('v3:');
 }
 
+export function hashString(text: string): string {
+  return CryptoJS.SHA256(text).toString();
+}
+
 /**
  * Generate a random password
  */

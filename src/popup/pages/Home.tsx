@@ -12,6 +12,7 @@ import Settings from './Settings';
 import AddToken from './AddToken';
 import ApprovalDialog from '../components/ApprovalDialog';
 import CreateAccountDialog from '../components/CreateAccountDialog';
+import AddDerivedAccountDialog from '../components/AddDerivedAccountDialog';
 import type { Token } from '../../types/token';
 
 type Tab = 'assets' | 'activity';
@@ -28,6 +29,7 @@ export default function Home() {
   const [showNetworkMenu, setShowNetworkMenu] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
+  const [showAddDerivedAccount, setShowAddDerivedAccount] = useState(false);
   const [, setPriceTick] = useState(0);
 
   useEffect(() => {
@@ -133,6 +135,10 @@ export default function Home() {
         open={showCreateAccount}
         onClose={() => setShowCreateAccount(false)}
       />
+      <AddDerivedAccountDialog
+        open={showAddDerivedAccount}
+        onClose={() => setShowAddDerivedAccount(false)}
+      />
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-2">
@@ -188,6 +194,15 @@ export default function Home() {
                   className="w-full px-4 py-2 text-left text-sm text-qfc-600 hover:bg-qfc-50"
                 >
                   {t.createWallet.createNew}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAccountMenu(false);
+                    setShowAddDerivedAccount(true);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-qfc-600 hover:bg-qfc-50"
+                >
+                  {t.settings.addDerivedAccount}
                 </button>
               </div>
             )}

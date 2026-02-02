@@ -99,6 +99,8 @@ export const ja: Translations = {
     exportMnemonic: 'リカバリーフレーズをエクスポート',
     mnemonicWarning: 'リカバリーフレーズは絶対に共有しないでください。',
     mnemonic: 'リカバリーフレーズ',
+    addDerivedAccount: '派生アカウントを追加',
+    derivedAccountHint: 'リカバリーフレーズから新しいアカウントを作成します。',
   },
   createWallet: {
     title: 'QFCウォレットへようこそ',

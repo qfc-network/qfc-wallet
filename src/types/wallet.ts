@@ -2,6 +2,8 @@ export interface Wallet {
   address: string;
   encryptedPrivateKey: string;
   encryptedMnemonic?: string;
+  mnemonicId?: string;
+  hdIndex?: number;
   name: string;
   createdAt: number;
 }

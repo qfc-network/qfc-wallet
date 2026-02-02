@@ -99,6 +99,8 @@ export const en: Translations = {
     exportMnemonic: 'Export Recovery Phrase',
     mnemonicWarning: 'Never share your recovery phrase. Anyone with it can take your funds.',
     mnemonic: 'Recovery Phrase',
+    addDerivedAccount: 'Add Derived Account',
+    derivedAccountHint: 'Creates a new account from your recovery phrase.',
   },
   createWallet: {
     title: 'Welcome to QFC Wallet',

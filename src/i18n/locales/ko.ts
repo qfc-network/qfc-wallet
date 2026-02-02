@@ -99,6 +99,8 @@ export const ko: Translations = {
     exportMnemonic: '복구 구문 내보내기',
     mnemonicWarning: '복구 구문을 공유하지 마세요. 자산이 위험해질 수 있습니다.',
     mnemonic: '복구 구문',
+    addDerivedAccount: '파생 계정 추가',
+    derivedAccountHint: '복구 구문으로 새 계정을 만듭니다.',
   },
   createWallet: {
     title: 'QFC 지갑에 오신 것을 환영합니다',
