@@ -72,21 +72,14 @@ const mockChromeRuntime = {
 } as unknown as typeof chrome;
 
 // Mock crypto.getRandomValues for Node.js environment
-if (typeof globalThis.crypto === 'undefined') {
+// Use Node.js crypto module for proper random values that ethers.js can use
+import { webcrypto } from 'crypto';
+
+if (typeof globalThis.crypto === 'undefined' || !globalThis.crypto.getRandomValues) {
   Object.defineProperty(globalThis, 'crypto', {
-    value: {
-      getRandomValues: <T extends ArrayBufferView | null>(array: T): T => {
-        if (array) {
-          const bytes = array as unknown as Uint8Array;
-          for (let i = 0; i < bytes.length; i++) {
-            bytes[i] = Math.floor(Math.random() * 256);
-          }
-        }
-        return array;
-      },
-      subtle: {},
-      randomUUID: () => 'mock-uuid-' + Math.random().toString(36).slice(2),
-    },
+    value: webcrypto,
+    writable: true,
+    configurable: true,
   });
 }
 
