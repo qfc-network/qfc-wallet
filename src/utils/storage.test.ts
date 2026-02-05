@@ -354,6 +354,7 @@ describe('storage', () => {
       name,
       address,
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
 
     it('should return empty array when no contacts', async () => {

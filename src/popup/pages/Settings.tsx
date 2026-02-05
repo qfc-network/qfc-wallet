@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, Trash2, ExternalLink, Globe, ChevronDown, ChevronRight, BookUser, Plus, Pencil } from 'lucide-react';
 import { useWalletStore, sendMessage, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';

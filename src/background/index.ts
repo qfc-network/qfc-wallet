@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { WalletController } from './WalletController';
-import { NETWORKS, NetworkKey } from '../utils/constants';
+import { NETWORKS, NetworkKey, LOCK_TIMEOUT_MS } from '../utils/constants';
 import { walletStorage, txStorage, tokenStorage, networkStorage } from '../utils/storage';
 import { RPC_ERRORS } from '../types/network';
 import type { TransactionRecord, PendingApproval } from '../types/transaction';

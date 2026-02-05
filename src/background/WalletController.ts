@@ -212,7 +212,7 @@ export class WalletController {
 
     const nextIndex = maxIndex + 1;
     const path = `m/44'/60'/0'/0/${nextIndex}`;
-    const derived = ethers.Wallet.fromPhrase(phrase, path);
+    const derived = ethers.HDNodeWallet.fromPhrase(phrase, undefined, path);
 
     const encryptedPrivateKey = encrypt(derived.privateKey, this.password);
     const encryptedMnemonic = encrypt(phrase, this.password);
