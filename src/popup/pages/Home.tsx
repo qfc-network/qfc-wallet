@@ -10,13 +10,14 @@ import SendToken from './SendToken';
 import Receive from './Receive';
 import Settings from './Settings';
 import AddToken from './AddToken';
+import Inference from './Inference';
 import ApprovalDialog from '../components/ApprovalDialog';
 import CreateAccountDialog from '../components/CreateAccountDialog';
 import AddDerivedAccountDialog from '../components/AddDerivedAccountDialog';
 import type { Token } from '../../types/token';
 
 type Tab = 'assets' | 'activity';
-type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'sendToken';
+type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'sendToken' | 'inference';
 
 export default function Home() {
   const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval, wallets, networks } = useWalletStore();
@@ -108,6 +109,10 @@ export default function Home() {
 
   if (view === 'addToken') {
     return <AddToken onBack={() => setView('home')} />;
+  }
+
+  if (view === 'inference') {
+    return <Inference onBack={() => setView('home')} />;
   }
 
   if (view === 'sendToken' && selectedToken) {
@@ -279,7 +284,7 @@ export default function Home() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3 p-4">
+      <div className="grid grid-cols-4 gap-3 p-4">
         <QuickAction
           icon={<ArrowDownToLine size={20} />}
           label={t.common.receive}
@@ -289,6 +294,11 @@ export default function Home() {
           icon={<SendIcon size={20} />}
           label={t.common.send}
           onClick={() => setView('send')}
+        />
+        <QuickAction
+          icon={<span className="text-lg">🧠</span>}
+          label={t.inference.title}
+          onClick={() => setView('inference')}
         />
         <QuickAction
           icon={<span className="text-lg">⇄</span>}
