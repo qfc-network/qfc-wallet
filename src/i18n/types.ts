@@ -190,4 +190,21 @@ export interface Translations {
     noContacts: string;
     confirmDelete: string;
   };
+  inference: {
+    title: string;
+    taskLookup: string;
+    taskIdPlaceholder: string;
+    lookup: string;
+    lookingUp: string;
+    taskNotFound: string;
+    status: string;
+    model: string;
+    taskType: string;
+    maxFee: string;
+    miner: string;
+    submitted: string;
+    deadline: string;
+    executionTime: string;
+    resultSize: string;
+  };
 }
