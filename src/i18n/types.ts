@@ -206,5 +206,15 @@ export interface Translations {
     deadline: string;
     executionTime: string;
     resultSize: string;
+    submitTask: string;
+    selectModel: string;
+    loadingModels: string;
+    inputPlaceholder: string;
+    maxFeeLabel: string;
+    submit: string;
+    submitting: string;
+    submitSuccess: string;
+    submitError: string;
+    noModels: string;
   };
 }

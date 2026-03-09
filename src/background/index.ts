@@ -842,6 +842,12 @@ async function handleMessage(
         break;
       }
 
+      case 'wallet_signMessage': {
+        const [msgToSign] = params as [string];
+        result = await walletController.signMessage(msgToSign);
+        break;
+      }
+
       default:
         throw {
           code: RPC_ERRORS.METHOD_NOT_FOUND.code,
