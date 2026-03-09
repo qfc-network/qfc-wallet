@@ -217,4 +217,29 @@ export interface Translations {
     submitError: string;
     noModels: string;
   };
+  agents: {
+    title: string;
+    noAgents: string;
+    register: string;
+    registerAgent: string;
+    agentId: string;
+    agentAddress: string;
+    permissions: string;
+    dailyLimit: string;
+    maxPerTx: string;
+    depositAmount: string;
+    deposit: string;
+    spentToday: string;
+    fund: string;
+    fundAgent: string;
+    amount: string;
+    revoke: string;
+    revoked: string;
+    confirmRevoke: string;
+    registering: string;
+    loadError: string;
+    registerError: string;
+    fundError: string;
+    revokeError: string;
+  };
 }
