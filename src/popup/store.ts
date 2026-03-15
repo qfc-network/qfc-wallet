@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Wallet, NetworkConfig } from '../types/wallet';
 import type { TransactionRecord, PendingApproval } from '../types/transaction';
 import type { Token } from '../types/token';
+import type { NFT } from '../types/nft';
 import { NETWORKS, NetworkKey } from '../utils/constants';
 
 interface WalletStore {
@@ -17,6 +18,7 @@ interface WalletStore {
   error: string | null;
   transactions: TransactionRecord[];
   tokens: Token[];
+  nfts: NFT[];
   pendingApproval: PendingApproval | null;
 
   // Actions
@@ -30,6 +32,7 @@ interface WalletStore {
   setError: (error: string | null) => void;
   setTransactions: (transactions: TransactionRecord[]) => void;
   setTokens: (tokens: Token[]) => void;
+  setNFTs: (nfts: NFT[]) => void;
   setPendingApproval: (approval: PendingApproval | null) => void;
   reset: () => void;
 }
@@ -46,6 +49,7 @@ const initialState = {
   error: null as string | null,
   transactions: [] as TransactionRecord[],
   tokens: [] as Token[],
+  nfts: [] as NFT[],
   pendingApproval: null as PendingApproval | null,
 };
 
@@ -62,6 +66,7 @@ export const useWalletStore = create<WalletStore>((set) => ({
   setError: (error) => set({ error }),
   setTransactions: (transactions) => set({ transactions }),
   setTokens: (tokens) => set({ tokens }),
+  setNFTs: (nfts) => set({ nfts }),
   setPendingApproval: (approval) => set({ pendingApproval: approval }),
   reset: () => set(initialState),
 }));
@@ -116,6 +121,7 @@ export const walletActions = {
           await walletActions.refreshBalance(address);
           await walletActions.loadTransactions(address);
           await walletActions.loadTokens(address);
+          await walletActions.loadNFTs(address);
         }
       }
 
@@ -177,6 +183,7 @@ export const walletActions = {
       await walletActions.refreshBalance(result.address);
       await walletActions.loadTransactions(result.address);
       await walletActions.loadTokens(result.address);
+      await walletActions.loadNFTs(result.address);
 
       return result;
     } catch (error) {
@@ -234,6 +241,7 @@ export const walletActions = {
           await walletActions.refreshBalance(address);
           await walletActions.loadTransactions(address);
           await walletActions.loadTokens(address);
+          await walletActions.loadNFTs(address);
         }
       } else {
         store.setError('Wrong password');
@@ -300,6 +308,7 @@ export const walletActions = {
       await walletActions.refreshBalance(address);
       await walletActions.loadTransactions(address);
       await walletActions.loadTokens(address);
+      await walletActions.loadNFTs(address);
     } catch (error) {
       console.error('Failed to switch account:', error);
     }
@@ -315,6 +324,7 @@ export const walletActions = {
       await walletActions.refreshBalance(wallet.address);
       await walletActions.loadTransactions(wallet.address);
       await walletActions.loadTokens(wallet.address);
+      await walletActions.loadNFTs(wallet.address);
       return wallet;
     } catch (error) {
       console.error('Failed to add derived account:', error);
@@ -345,6 +355,7 @@ export const walletActions = {
         await walletActions.refreshBalance(nextAddress);
         await walletActions.loadTransactions(nextAddress);
         await walletActions.loadTokens(nextAddress);
+        await walletActions.loadNFTs(nextAddress);
       }
     } catch (error) {
       console.error('Failed to remove account:', error);
@@ -428,6 +439,58 @@ export const walletActions = {
     }
   },
 
+  async loadNFTs(address?: string) {
+    const store = useWalletStore.getState();
+    const addr = address || store.currentAddress;
+
+    if (!addr) return;
+
+    try {
+      const nfts = await sendMessage<NFT[]>('wallet_getNFTs', [addr]);
+      store.setNFTs(nfts);
+    } catch (error) {
+      console.error('Failed to load NFTs:', error);
+    }
+  },
+
+  async addNFT(contractAddress: string, tokenId: string) {
+    const store = useWalletStore.getState();
+    const addr = store.currentAddress;
+
+    if (!addr) return;
+
+    try {
+      const nft = await sendMessage<NFT>('wallet_addNFT', [addr, contractAddress, tokenId]);
+      const nfts = [...store.nfts, nft];
+      store.setNFTs(nfts);
+      return nft;
+    } catch (error) {
+      console.error('Failed to add NFT:', error);
+      throw error;
+    }
+  },
+
+  async removeNFT(contractAddress: string, tokenId: string) {
+    const store = useWalletStore.getState();
+    const addr = store.currentAddress;
+
+    if (!addr) return;
+
+    try {
+      await sendMessage('wallet_removeNFT', [addr, contractAddress, tokenId]);
+      const nfts = store.nfts.filter(
+        (n) =>
+          !(
+            n.contractAddress.toLowerCase() === contractAddress.toLowerCase() &&
+            n.tokenId === tokenId
+          )
+      );
+      store.setNFTs(nfts);
+    } catch (error) {
+      console.error('Failed to remove NFT:', error);
+    }
+  },
+
   async refreshTokenBalances() {
     const store = useWalletStore.getState();
     const addr = store.currentAddress;
@@ -439,6 +502,28 @@ export const walletActions = {
       store.setTokens(tokens);
     } catch (error) {
       console.error('Failed to refresh token balances:', error);
+    }
+  },
+
+  async speedUpTransaction(txHash: string) {
+    try {
+      const newHash = await sendMessage<string>('wallet_speedUpTransaction', [txHash]);
+      await walletActions.loadTransactions();
+      return newHash;
+    } catch (error) {
+      console.error('Failed to speed up transaction:', error);
+      throw error;
+    }
+  },
+
+  async cancelTransaction(txHash: string) {
+    try {
+      const newHash = await sendMessage<string>('wallet_cancelTransaction', [txHash]);
+      await walletActions.loadTransactions();
+      return newHash;
+    } catch (error) {
+      console.error('Failed to cancel transaction:', error);
+      throw error;
     }
   },
 

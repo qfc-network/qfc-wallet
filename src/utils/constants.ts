@@ -52,6 +52,7 @@ export const STORAGE_KEYS = {
   TOKENS: 'qfc_tokens',
   PENDING_APPROVALS: 'qfc_pending_approvals',
   CONTACTS: 'qfc_contacts',
+  NFTS: 'qfc_nfts',
 } as const;
 
 // Message types

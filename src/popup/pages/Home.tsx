@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink, User, Droplets } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink, User, Droplets, Search } from 'lucide-react';
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { NetworkKey, TOKEN_LOGOS } from '../../utils/constants';
@@ -10,17 +10,19 @@ import SendToken from './SendToken';
 import Receive from './Receive';
 import Settings from './Settings';
 import AddToken from './AddToken';
+import AddNFT from './AddNFT';
 import Inference from './Inference';
 import ApprovalDialog from '../components/ApprovalDialog';
 import CreateAccountDialog from '../components/CreateAccountDialog';
 import AddDerivedAccountDialog from '../components/AddDerivedAccountDialog';
 import type { Token } from '../../types/token';
+import type { NFT } from '../../types/nft';
 
-type Tab = 'assets' | 'activity';
-type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'sendToken' | 'inference' | 'faucet';
+type Tab = 'assets' | 'activity' | 'nfts';
+type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'addNFT' | 'sendToken' | 'inference' | 'faucet';
 
 export default function Home() {
-  const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval, wallets, networks } = useWalletStore();
+  const { currentAddress, balance, network, networkKey, tokens, nfts, transactions, pendingApproval, wallets, networks } = useWalletStore();
   const t = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>('assets');
   const [view, setView] = useState<View>('home');
@@ -32,6 +34,9 @@ export default function Home() {
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [showAddDerivedAccount, setShowAddDerivedAccount] = useState(false);
   const [, setPriceTick] = useState(0);
+  const [txSearchQuery, setTxSearchQuery] = useState('');
+  const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'send' | 'receive' | 'token' | 'contract'>('all');
+  const [txStatusFilter, setTxStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'failed'>('all');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -90,6 +95,29 @@ export default function Home() {
   // USD value from price utility
   const usdValue = calculateUsdValue('QFC', balance);
 
+  // Filtered transactions for activity tab
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((tx) => {
+      // Search by hash (partial match)
+      if (txSearchQuery && !tx.hash.toLowerCase().includes(txSearchQuery.toLowerCase())) {
+        return false;
+      }
+      // Type filter
+      if (txTypeFilter !== 'all') {
+        const isSent = tx.from.toLowerCase() === (currentAddress || '').toLowerCase();
+        if (txTypeFilter === 'send' && !(tx.type === 'send' && isSent)) return false;
+        if (txTypeFilter === 'receive' && !(tx.type === 'send' && !isSent)) return false;
+        if (txTypeFilter === 'token' && tx.type !== 'token_transfer') return false;
+        if (txTypeFilter === 'contract' && tx.type !== 'contract') return false;
+      }
+      // Status filter
+      if (txStatusFilter !== 'all' && tx.status !== txStatusFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [transactions, txSearchQuery, txTypeFilter, txStatusFilter, currentAddress]);
+
   // Show pending approval dialog
   if (pendingApproval) {
     return <ApprovalDialog />;
@@ -109,6 +137,10 @@ export default function Home() {
 
   if (view === 'addToken') {
     return <AddToken onBack={() => setView('home')} />;
+  }
+
+  if (view === 'addNFT') {
+    return <AddNFT onBack={() => setView('home')} />;
   }
 
   if (view === 'inference') {
@@ -321,7 +353,7 @@ export default function Home() {
         />
       </div>
 
-      {/* Assets & Activity */}
+      {/* Assets, NFTs & Activity */}
       <div className="flex-1 bg-white rounded-t-3xl p-4 overflow-hidden flex flex-col">
         {/* Tabs */}
         <div className="flex gap-4 border-b mb-4">
@@ -334,6 +366,21 @@ export default function Home() {
             }`}
           >
             {t.home.assets}
+          </button>
+          <button
+            onClick={() => setActiveTab('nfts')}
+            className={`pb-2 px-1 border-b-2 font-medium transition-colors flex items-center gap-1.5 ${
+              activeTab === 'nfts'
+                ? 'border-qfc-500 text-qfc-600'
+                : 'border-transparent text-gray-500'
+            }`}
+          >
+            {t.nft.title}
+            {nfts.length > 0 && (
+              <span className="bg-qfc-100 text-qfc-700 text-[10px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">
+                {nfts.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('activity')}
@@ -386,20 +433,171 @@ export default function Home() {
                 <span className="text-sm font-medium">{t.home.addToken}</span>
               </button>
             </div>
+          ) : activeTab === 'nfts' ? (
+            <div>
+              {/* NFT Grid */}
+              {nfts.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  {t.nft.noNFTs}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {nfts.map((nft) => (
+                    <NFTCard
+                      key={`${nft.contractAddress}-${nft.tokenId}`}
+                      nft={nft}
+                      onRemove={() => walletActions.removeNFT(nft.contractAddress, nft.tokenId)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Add NFT Button */}
+              <button
+                onClick={() => setView('addNFT')}
+                className="w-full flex items-center justify-center gap-2 p-3 mt-3 text-qfc-600 hover:bg-qfc-50 rounded-xl transition-colors"
+              >
+                <Plus size={18} />
+                <span className="text-sm font-medium">{t.nft.addNFT}</span>
+              </button>
+            </div>
           ) : (
             <div className="space-y-2">
+              {/* Filter Bar */}
+              <div className="space-y-2 mb-2">
+                {/* Search input */}
+                <div className="relative">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={txSearchQuery}
+                    onChange={(e) => setTxSearchQuery(e.target.value)}
+                    placeholder={t.home.searchTxHash}
+                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-qfc-400 bg-gray-50"
+                  />
+                </div>
+                {/* Type filter pills */}
+                <div className="flex gap-1 flex-wrap">
+                  {([
+                    ['all', t.home.filterAll],
+                    ['send', t.home.filterSend],
+                    ['receive', t.home.filterReceive],
+                    ['token', t.home.filterToken],
+                    ['contract', t.home.filterContract],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      onClick={() => setTxTypeFilter(value)}
+                      className={`px-2 py-0.5 text-[10px] rounded-full border transition-colors ${
+                        txTypeFilter === value
+                          ? 'bg-qfc-500 text-white border-qfc-500'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-qfc-300'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {/* Status filter pills */}
+                <div className="flex gap-1 flex-wrap">
+                  {([
+                    ['all', t.home.filterAll],
+                    ['pending', t.home.filterPending],
+                    ['confirmed', t.home.filterConfirmed],
+                    ['failed', t.home.filterFailed],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      onClick={() => setTxStatusFilter(value)}
+                      className={`px-2 py-0.5 text-[10px] rounded-full border transition-colors ${
+                        txStatusFilter === value
+                          ? 'bg-qfc-500 text-white border-qfc-500'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-qfc-300'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Transaction list */}
               {transactions.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
                   {t.home.noActivity}
                 </div>
+              ) : filteredTransactions.length === 0 ? (
+                <div className="text-center text-gray-400 py-6 text-sm">
+                  {t.home.noMatchingTx}
+                </div>
               ) : (
-                transactions.map((tx) => (
+                filteredTransactions.map((tx) => (
                   <TransactionItem key={tx.hash} tx={tx} currentAddress={currentAddress || ''} explorerUrl={network.explorerUrl} t={t} />
                 ))
               )}
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function NFTCard({
+  nft,
+  onRemove,
+}: {
+  nft: NFT;
+  onRemove: () => void;
+}) {
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <div className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-md transition-shadow group relative">
+      {/* Image */}
+      <div className="aspect-square w-full bg-gradient-to-br from-purple-200 via-pink-200 to-blue-200 relative">
+        {nft.image && !imgError ? (
+          <img
+            src={nft.image}
+            alt={nft.name}
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-white/60">
+            NFT
+          </div>
+        )}
+
+        {/* Remove button (shown on hover) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+          title="Remove"
+        >
+          x
+        </button>
+
+        {/* Standard badge */}
+        <span className="absolute bottom-1 left-1 text-[9px] bg-black/50 text-white px-1.5 py-0.5 rounded-full">
+          {nft.standard}
+        </span>
+
+        {/* ERC-1155 balance badge */}
+        {nft.standard === 'ERC-1155' && nft.balance && (
+          <span className="absolute bottom-1 right-1 text-[9px] bg-black/50 text-white px-1.5 py-0.5 rounded-full">
+            x{nft.balance}
+          </span>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="p-2">
+        <div className="text-sm font-medium text-gray-800 truncate">{nft.name}</div>
+        <div className="text-[11px] text-gray-500 truncate">{nft.collection}</div>
+        <div className="text-[10px] text-gray-400 truncate">#{nft.tokenId}</div>
       </div>
     </div>
   );
@@ -504,6 +702,7 @@ function TransactionItem({
   explorerUrl: string;
   t: ReturnType<typeof useTranslation>;
 }) {
+  const [actionLoading, setActionLoading] = useState<'speedUp' | 'cancel' | null>(null);
   const isSent = tx.from.toLowerCase() === currentAddress.toLowerCase();
   const date = new Date(tx.timestamp);
   const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -527,49 +726,92 @@ function TransactionItem({
     return t.common.failed;
   };
 
+  const handleSpeedUp = async () => {
+    setActionLoading('speedUp');
+    try {
+      await walletActions.speedUpTransaction(tx.hash);
+    } catch {
+      // Error is logged in the store action
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancel = async () => {
+    setActionLoading('cancel');
+    try {
+      await walletActions.cancelTransaction(tx.hash);
+    } catch {
+      // Error is logged in the store action
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Format value display (token transfers include symbol in value)
   const displayValue = tx.type === 'token_transfer' || tx.value.includes(' ')
     ? tx.value
     : `${tx.value} QFC`;
 
   return (
-    <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-xl transition-colors">
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-          tx.type === 'contract' ? 'bg-purple-100 text-purple-600' :
-          isSent ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-        }`}>
-          {tx.type === 'contract' ? '⚙' : isSent ? '↑' : '↓'}
-        </div>
-        <div>
-          <div className="font-medium">{getLabel()}</div>
-          <div className="text-xs text-gray-500">{dateStr} {timeStr}</div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="text-right">
-          <div className={`font-medium ${
-            tx.type === 'contract' ? 'text-purple-600' :
-            isSent ? 'text-red-600' : 'text-green-600'
+    <div className="p-3 hover:bg-gray-50 rounded-xl transition-colors">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            tx.type === 'contract' ? 'bg-purple-100 text-purple-600' :
+            isSent ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
           }`}>
-            {tx.type === 'contract' ? '' : (isSent ? '-' : '+')}{displayValue}
+            {tx.type === 'contract' ? '⚙' : isSent ? '↑' : '↓'}
           </div>
-          <div className={`text-xs ${
-            tx.status === 'confirmed' ? 'text-green-500' :
-            tx.status === 'pending' ? 'text-yellow-500' : 'text-red-500'
-          }`}>
-            {getStatusText()}
+          <div>
+            <div className="font-medium">{getLabel()}</div>
+            <div className="text-xs text-gray-500">{dateStr} {timeStr}</div>
           </div>
         </div>
-        <a
-          href={`${explorerUrl}/tx/${tx.hash}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-1 text-gray-400 hover:text-gray-600"
-        >
-          <ExternalLink size={14} />
-        </a>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <div className={`font-medium ${
+              tx.type === 'contract' ? 'text-purple-600' :
+              isSent ? 'text-red-600' : 'text-green-600'
+            }`}>
+              {tx.type === 'contract' ? '' : (isSent ? '-' : '+')}{displayValue}
+            </div>
+            <div className={`text-xs ${
+              tx.status === 'confirmed' ? 'text-green-500' :
+              tx.status === 'pending' ? 'text-yellow-500' : 'text-red-500'
+            }`}>
+              {getStatusText()}
+            </div>
+          </div>
+          <a
+            href={`${explorerUrl}/tx/${tx.hash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1 text-gray-400 hover:text-gray-600"
+          >
+            <ExternalLink size={14} />
+          </a>
+        </div>
       </div>
+      {tx.status === 'pending' && isSent && (
+        <div className="flex items-center gap-2 mt-1.5 pl-[52px]">
+          <button
+            onClick={handleSpeedUp}
+            disabled={actionLoading !== null}
+            className="text-xs text-qfc-600 hover:text-qfc-800 font-medium disabled:opacity-50"
+          >
+            {actionLoading === 'speedUp' ? t.common.loading : t.home.speedUp}
+          </button>
+          <span className="text-xs text-gray-300">|</span>
+          <button
+            onClick={handleCancel}
+            disabled={actionLoading !== null}
+            className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50"
+          >
+            {actionLoading === 'cancel' ? t.common.loading : t.home.cancelTx}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

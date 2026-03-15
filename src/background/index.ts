@@ -1,11 +1,13 @@
 import { ethers } from 'ethers';
 import { WalletController } from './WalletController';
 import { NETWORKS, NetworkKey, LOCK_TIMEOUT_MS } from '../utils/constants';
-import { walletStorage, txStorage, tokenStorage, networkStorage } from '../utils/storage';
+import { walletStorage, txStorage, tokenStorage, nftStorage, networkStorage } from '../utils/storage';
 import { RPC_ERRORS } from '../types/network';
 import type { TransactionRecord, PendingApproval } from '../types/transaction';
 import type { Token } from '../types/token';
 import { ERC20_ABI } from '../types/token';
+import type { NFT } from '../types/nft';
+import { ERC721_ABI, ERC1155_ABI, ERC1155_INTERFACE_ID, resolveIpfsUri } from '../types/nft';
 
 // State
 let currentNetworkKey: NetworkKey = 'testnet';
@@ -811,6 +813,103 @@ async function handleMessage(
         break;
       }
 
+      // Speed up / cancel pending transactions
+      case 'wallet_speedUpTransaction': {
+        const [txHash] = params as [string];
+        const account = walletController.getCurrentAccount();
+        if (!account) throw new Error('Wallet is locked');
+
+        // Find original tx in history
+        const speedUpHistory = await txStorage.getHistory(account);
+        const originalTx = speedUpHistory.find(t => t.hash === txHash);
+        if (!originalTx) throw new Error('Transaction not found');
+        if (originalTx.status !== 'pending') throw new Error('Transaction is not pending');
+
+        // Get the original on-chain tx to obtain nonce
+        const onChainTx = await walletController.getTransactionByHash(txHash);
+        if (!onChainTx) throw new Error('Transaction not found on chain');
+
+        // Get current gas price and use 1.5x
+        const currentGasPrice = BigInt(await walletController.getGasPrice());
+        const originalGasPrice = onChainTx.gasPrice ? BigInt(onChainTx.gasPrice) : currentGasPrice;
+        const boostedGasPrice = (originalGasPrice > currentGasPrice ? originalGasPrice : currentGasPrice) * BigInt(3) / BigInt(2);
+
+        // Re-submit same tx with higher gas price and same nonce
+        const speedUpTxParams: Record<string, unknown> = {
+          to: onChainTx.to,
+          value: '0x' + BigInt(onChainTx.value).toString(16),
+          nonce: onChainTx.nonce,
+          gasPrice: '0x' + boostedGasPrice.toString(16),
+          gasLimit: '0x' + BigInt(onChainTx.gasLimit).toString(16),
+        };
+        if (onChainTx.data && onChainTx.data !== '0x') {
+          speedUpTxParams.data = onChainTx.data;
+        }
+
+        const newHash = await walletController.sendTransaction(speedUpTxParams);
+
+        // Mark old tx as failed (replaced) and add new one
+        await txStorage.updateTransaction(account, txHash, { status: 'failed' });
+        const newTxRecord: TransactionRecord = {
+          ...originalTx,
+          hash: newHash,
+          timestamp: Date.now(),
+          status: 'pending',
+        };
+        await txStorage.addTransaction(account, newTxRecord);
+
+        result = newHash;
+        break;
+      }
+
+      case 'wallet_cancelTransaction': {
+        const [txHash] = params as [string];
+        const account = walletController.getCurrentAccount();
+        if (!account) throw new Error('Wallet is locked');
+
+        // Find original tx in history
+        const cancelHistory = await txStorage.getHistory(account);
+        const cancelOriginalTx = cancelHistory.find(t => t.hash === txHash);
+        if (!cancelOriginalTx) throw new Error('Transaction not found');
+        if (cancelOriginalTx.status !== 'pending') throw new Error('Transaction is not pending');
+
+        // Get the original on-chain tx to obtain nonce
+        const cancelOnChainTx = await walletController.getTransactionByHash(txHash);
+        if (!cancelOnChainTx) throw new Error('Transaction not found on chain');
+
+        // Get current gas price and use 2x
+        const cancelCurrentGasPrice = BigInt(await walletController.getGasPrice());
+        const cancelOriginalGasPrice = cancelOnChainTx.gasPrice ? BigInt(cancelOnChainTx.gasPrice) : cancelCurrentGasPrice;
+        const cancelGasPrice = (cancelOriginalGasPrice > cancelCurrentGasPrice ? cancelOriginalGasPrice : cancelCurrentGasPrice) * BigInt(2);
+
+        // Send 0-value tx to self with same nonce to replace original
+        const cancelTxParams: Record<string, unknown> = {
+          to: account,
+          value: '0x0',
+          nonce: cancelOnChainTx.nonce,
+          gasPrice: '0x' + cancelGasPrice.toString(16),
+          gasLimit: '0x5208', // 21000 for simple transfer
+        };
+
+        const cancelNewHash = await walletController.sendTransaction(cancelTxParams);
+
+        // Mark old tx as failed (cancelled)
+        await txStorage.updateTransaction(account, txHash, { status: 'failed' });
+        const cancelTxRecord: TransactionRecord = {
+          hash: cancelNewHash,
+          from: account,
+          to: account,
+          value: '0',
+          timestamp: Date.now(),
+          status: 'pending',
+          type: 'send',
+        };
+        await txStorage.addTransaction(account, cancelTxRecord);
+
+        result = cancelNewHash;
+        break;
+      }
+
       // Connected sites
       case 'wallet_getConnectedSites': {
         result = await walletStorage.getConnectedSites();
@@ -838,6 +937,162 @@ async function handleMessage(
           approvalResolvers.delete(approvalId);
           pendingApproval = null;
         }
+        result = true;
+        break;
+      }
+
+      // NFT methods
+      case 'wallet_getNFTs': {
+        const [address] = params as [string];
+        result = await nftStorage.getNFTs(address);
+        break;
+      }
+
+      case 'wallet_addNFT': {
+        const [walletAddress, contractAddress, tokenId] = params as [string, string, string];
+        const network = walletController.getNetwork();
+        const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+
+        // Detect standard via ERC-165
+        let standard: 'ERC-721' | 'ERC-1155' = 'ERC-721';
+        let nftName = '';
+        let nftImage = '';
+        let nftCollection = '';
+        let nftBalance: string | undefined;
+
+        try {
+          const erc165 = new ethers.Contract(
+            contractAddress,
+            ['function supportsInterface(bytes4 interfaceId) view returns (bool)'],
+            provider
+          );
+
+          let isERC1155 = false;
+          try {
+            isERC1155 = await erc165.supportsInterface(ERC1155_INTERFACE_ID);
+          } catch {
+            // contract may not support ERC-165
+          }
+
+          if (isERC1155) {
+            standard = 'ERC-1155';
+            const contract = new ethers.Contract(contractAddress, ERC1155_ABI, provider);
+
+            // Get balance
+            const bal = await contract.balanceOf(walletAddress, tokenId);
+            nftBalance = bal.toString();
+
+            // Get URI and fetch metadata
+            let uri = '';
+            try {
+              uri = await contract.uri(tokenId);
+              // ERC-1155 URIs may contain {id} placeholder
+              uri = uri.replace('{id}', BigInt(tokenId).toString(16).padStart(64, '0'));
+            } catch {
+              // uri may not be available
+            }
+
+            if (uri) {
+              const resolvedUri = resolveIpfsUri(uri);
+              try {
+                const response = await fetch(resolvedUri);
+                const metadata = await response.json();
+                nftName = metadata.name || `#${tokenId}`;
+                nftImage = resolveIpfsUri(metadata.image || '');
+                nftCollection = metadata.collection?.name || '';
+              } catch {
+                nftName = `#${tokenId}`;
+              }
+            } else {
+              nftName = `#${tokenId}`;
+            }
+
+            // Try to get collection name from contract (not standard for 1155 but some implement it)
+            if (!nftCollection) {
+              try {
+                const nameContract = new ethers.Contract(
+                  contractAddress,
+                  ['function name() view returns (string)'],
+                  provider
+                );
+                nftCollection = await nameContract.name();
+              } catch {
+                nftCollection = contractAddress.slice(0, 10) + '...';
+              }
+            }
+          } else {
+            // Treat as ERC-721
+            standard = 'ERC-721';
+            const contract = new ethers.Contract(contractAddress, ERC721_ABI, provider);
+
+            // Verify ownership
+            try {
+              const owner = await contract.ownerOf(tokenId);
+              if (owner.toLowerCase() !== walletAddress.toLowerCase()) {
+                throw new Error('You do not own this NFT');
+              }
+            } catch (err) {
+              if (err instanceof Error && err.message.includes('do not own')) {
+                throw err;
+              }
+              // ownerOf might fail for non-existent tokens
+              throw new Error('NFT not found or invalid token ID');
+            }
+
+            // Get collection name
+            try {
+              nftCollection = await contract.name();
+            } catch {
+              nftCollection = contractAddress.slice(0, 10) + '...';
+            }
+
+            // Get tokenURI and fetch metadata
+            let tokenURI = '';
+            try {
+              tokenURI = await contract.tokenURI(tokenId);
+            } catch {
+              // tokenURI may not be available
+            }
+
+            if (tokenURI) {
+              const resolvedUri = resolveIpfsUri(tokenURI);
+              try {
+                const response = await fetch(resolvedUri);
+                const metadata = await response.json();
+                nftName = metadata.name || `${nftCollection} #${tokenId}`;
+                nftImage = resolveIpfsUri(metadata.image || '');
+              } catch {
+                nftName = `${nftCollection} #${tokenId}`;
+              }
+            } else {
+              nftName = `${nftCollection} #${tokenId}`;
+            }
+          }
+
+          const nft: NFT = {
+            contractAddress,
+            tokenId,
+            name: nftName,
+            image: nftImage,
+            collection: nftCollection,
+            standard,
+            balance: nftBalance,
+          };
+
+          await nftStorage.addNFT(walletAddress, nft);
+          result = nft;
+        } catch (err) {
+          if (err instanceof Error) {
+            throw err;
+          }
+          throw new Error('Invalid NFT contract');
+        }
+        break;
+      }
+
+      case 'wallet_removeNFT': {
+        const [walletAddress, contractAddress, tokenId] = params as [string, string, string];
+        await nftStorage.removeNFT(walletAddress, contractAddress, tokenId);
         result = true;
         break;
       }

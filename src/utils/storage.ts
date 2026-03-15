@@ -1,6 +1,7 @@
 import { STORAGE_KEYS } from './constants';
 import type { TransactionRecord } from '../types/transaction';
 import type { Token } from '../types/token';
+import type { NFT } from '../types/nft';
 import type { Contact } from '../types/contact';
 
 /**
@@ -183,6 +184,43 @@ export const tokenStorage = {
       const key = `${STORAGE_KEYS.TOKENS}_${address.toLowerCase()}`;
       await storage.set(key, tokens);
     }
+  },
+};
+
+/**
+ * NFT storage
+ */
+export const nftStorage = {
+  async getNFTs(address: string): Promise<NFT[]> {
+    const key = `${STORAGE_KEYS.NFTS}_${address.toLowerCase()}`;
+    return (await storage.get<NFT[]>(key)) ?? [];
+  },
+
+  async addNFT(address: string, nft: NFT): Promise<void> {
+    const nfts = await this.getNFTs(address);
+    const exists = nfts.find(
+      (n) =>
+        n.contractAddress.toLowerCase() === nft.contractAddress.toLowerCase() &&
+        n.tokenId === nft.tokenId
+    );
+    if (!exists) {
+      nfts.push(nft);
+      const key = `${STORAGE_KEYS.NFTS}_${address.toLowerCase()}`;
+      await storage.set(key, nfts);
+    }
+  },
+
+  async removeNFT(address: string, contractAddress: string, tokenId: string): Promise<void> {
+    const nfts = await this.getNFTs(address);
+    const filtered = nfts.filter(
+      (n) =>
+        !(
+          n.contractAddress.toLowerCase() === contractAddress.toLowerCase() &&
+          n.tokenId === tokenId
+        )
+    );
+    const key = `${STORAGE_KEYS.NFTS}_${address.toLowerCase()}`;
+    await storage.set(key, filtered);
   },
 };
 
