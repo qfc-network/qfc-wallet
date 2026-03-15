@@ -276,4 +276,34 @@ export interface Translations {
     balance: string;
     standard: string;
   };
+  swap: {
+    title: string;
+    from: string;
+    to: string;
+    selectToken: string;
+    amount: string;
+    amountPlaceholder: string;
+    balance: string;
+    max: string;
+    getQuote: string;
+    gettingQuote: string;
+    slippage: string;
+    slippageTolerance: string;
+    priceImpact: string;
+    minimumReceived: string;
+    rate: string;
+    swapButton: string;
+    swapping: string;
+    swapSuccess: string;
+    insufficientBalance: string;
+    enterAmount: string;
+    selectTokens: string;
+    sameToken: string;
+    noLiquidity: string;
+    approving: string;
+    approveRequired: string;
+    nativeToken: string;
+    estimatedOutput: string;
+    txHash: string;
+  };
 }

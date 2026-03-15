@@ -12,6 +12,7 @@ import Settings from './Settings';
 import AddToken from './AddToken';
 import AddNFT from './AddNFT';
 import Inference from './Inference';
+import Swap from './Swap';
 import ApprovalDialog from '../components/ApprovalDialog';
 import CreateAccountDialog from '../components/CreateAccountDialog';
 import AddDerivedAccountDialog from '../components/AddDerivedAccountDialog';
@@ -19,7 +20,7 @@ import type { Token } from '../../types/token';
 import type { NFT } from '../../types/nft';
 
 type Tab = 'assets' | 'activity' | 'nfts';
-type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'addNFT' | 'sendToken' | 'inference' | 'faucet';
+type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'addNFT' | 'sendToken' | 'inference' | 'faucet' | 'swap';
 
 export default function Home() {
   const { currentAddress, balance, network, networkKey, tokens, nfts, transactions, pendingApproval, wallets, networks } = useWalletStore();
@@ -149,6 +150,10 @@ export default function Home() {
 
   if (view === 'faucet') {
     return <FaucetPage onBack={() => setView('home')} />;
+  }
+
+  if (view === 'swap') {
+    return <Swap onBack={() => setView('home')} />;
   }
 
   if (view === 'sendToken' && selectedToken) {
@@ -347,9 +352,7 @@ export default function Home() {
         <QuickAction
           icon={<span className="text-lg">⇄</span>}
           label={t.common.swap}
-          onClick={() => {}}
-          disabled
-          badge={t.home.comingSoon || 'Soon'}
+          onClick={() => setView('swap')}
         />
       </div>
 

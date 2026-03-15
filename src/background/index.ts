@@ -1097,6 +1097,256 @@ async function handleMessage(
         break;
       }
 
+      // DEX Swap methods
+      case 'wallet_getSwapQuote': {
+        const [fromTokenAddr, toTokenAddr, amount, fromDecimals, toDecimals, slippage] = params as [
+          string, string, string, number, number, number
+        ];
+
+        const network = walletController.getNetwork();
+        const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+
+        const ROUTER_ABI = [
+          'function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)',
+          'function WETH() external pure returns (address)',
+        ];
+        const DEX_ROUTER_ADDRESS = '0x64Fe09ce5104854c804bc0D56bA6366A2F000672';
+        const WQFC_ADDRESS = '0x60cC5DbC63Db58711e13022952cadb0f52da6069';
+
+        const router = new ethers.Contract(DEX_ROUTER_ADDRESS, ROUTER_ABI, provider);
+
+        // Build swap path
+        const isFromNative = fromTokenAddr === 'native';
+        const isToNative = toTokenAddr === 'native';
+        const fromAddr = isFromNative ? WQFC_ADDRESS : fromTokenAddr;
+        const toAddr = isToNative ? WQFC_ADDRESS : toTokenAddr;
+
+        const path = fromAddr.toLowerCase() === toAddr.toLowerCase()
+          ? [fromAddr]
+          : [fromAddr, toAddr];
+
+        if (path.length < 2) {
+          throw new Error('Cannot swap same token');
+        }
+
+        const amountIn = ethers.parseUnits(amount, fromDecimals);
+
+        try {
+          const amounts = await router.getAmountsOut(amountIn, path);
+          const amountOut = amounts[amounts.length - 1];
+          const formattedOut = ethers.formatUnits(amountOut, toDecimals);
+
+          // Calculate price impact (simplified: compare ratio vs 1:1)
+          const inFloat = parseFloat(amount);
+          const outFloat = parseFloat(formattedOut);
+          const impact = inFloat > 0 ? Math.abs(((outFloat / inFloat) - 1) * 100).toFixed(2) : '0.00';
+
+          // Calculate minimum received based on slippage
+          const slippageBps = BigInt(Math.floor(slippage * 100));
+          const minOut = amountOut - (amountOut * slippageBps / BigInt(10000));
+          const formattedMinOut = ethers.formatUnits(minOut, toDecimals);
+
+          result = {
+            amountOut: formattedOut,
+            priceImpact: impact,
+            minimumReceived: formattedMinOut,
+          };
+        } catch (err) {
+          console.error('[QFC] getAmountsOut error:', err);
+          throw new Error('Insufficient liquidity for this trade');
+        }
+        break;
+      }
+
+      case 'wallet_swap': {
+        const [
+          fromTokenAddr,
+          toTokenAddr,
+          amount,
+          fromDecimals,
+          toDecimals,
+          slippage,
+          userAddress,
+          approveOnly,
+        ] = params as [string, string, string, number, number, number, string, boolean | undefined];
+
+        const account = walletController.getCurrentAccount();
+        if (!account) throw new Error('Wallet is locked');
+
+        const network = walletController.getNetwork();
+        const provider = new ethers.JsonRpcProvider(network.rpcUrl);
+
+        const DEX_ROUTER_ADDRESS = '0x64Fe09ce5104854c804bc0D56bA6366A2F000672';
+        const WQFC_ADDRESS = '0x60cC5DbC63Db58711e13022952cadb0f52da6069';
+
+        const ROUTER_ABI = [
+          'function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)',
+          'function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)',
+          'function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)',
+          'function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)',
+        ];
+
+        const isFromNative = fromTokenAddr === 'native';
+        const isToNative = toTokenAddr === 'native';
+        const fromAddr = isFromNative ? WQFC_ADDRESS : fromTokenAddr;
+        const toAddr = isToNative ? WQFC_ADDRESS : toTokenAddr;
+        const path = [fromAddr, toAddr];
+
+        const amountIn = ethers.parseUnits(amount, fromDecimals);
+
+        // Get expected output for slippage calculation
+        const router = new ethers.Contract(DEX_ROUTER_ADDRESS, ROUTER_ABI, provider);
+        const amounts = await router.getAmountsOut(amountIn, path);
+        const expectedOut = amounts[amounts.length - 1];
+        const slippageBps = BigInt(Math.floor(slippage * 100));
+        const amountOutMin = expectedOut - (expectedOut * slippageBps / BigInt(10000));
+
+        const deadline = Math.floor(Date.now() / 1000) + 1200; // 20 minutes
+
+        // If from token is ERC-20, check and handle approval
+        if (!isFromNative) {
+          const tokenContract = new ethers.Contract(fromAddr, ERC20_ABI, provider);
+          const currentAllowance = await tokenContract.allowance(userAddress, DEX_ROUTER_ADDRESS);
+
+          if (currentAllowance < amountIn) {
+            // Need to approve
+            const iface = new ethers.Interface(ERC20_ABI);
+            const approveData = iface.encodeFunctionData('approve', [
+              DEX_ROUTER_ADDRESS,
+              ethers.MaxUint256,
+            ]);
+
+            const approveHash = await walletController.sendTransaction({
+              to: fromAddr,
+              data: approveData,
+              value: '0x0',
+            });
+
+            // Save approval tx to history
+            const approveTx: TransactionRecord = {
+              hash: approveHash,
+              from: account,
+              to: fromAddr,
+              value: '0',
+              timestamp: Date.now(),
+              status: 'pending',
+              type: 'contract',
+            };
+            await txStorage.addTransaction(account, approveTx);
+
+            if (approveOnly) {
+              result = approveHash;
+              break;
+            }
+
+            // Wait for approval to be mined (poll up to 30 seconds)
+            const startTime = Date.now();
+            while (Date.now() - startTime < 30000) {
+              try {
+                const receipt = await walletController.getTransactionReceipt(approveHash);
+                if (receipt && receipt.status === 1) {
+                  break;
+                }
+                if (receipt && receipt.status === 0) {
+                  throw new Error('Approval transaction failed');
+                }
+              } catch (err) {
+                if (err instanceof Error && err.message === 'Approval transaction failed') {
+                  throw err;
+                }
+              }
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+          } else if (approveOnly) {
+            result = 'already_approved';
+            break;
+          }
+        } else if (approveOnly) {
+          result = 'native_no_approval_needed';
+          break;
+        }
+
+        // Build and send swap transaction
+        const routerIface = new ethers.Interface(ROUTER_ABI);
+        let swapTx: Record<string, unknown>;
+
+        if (isFromNative) {
+          // swapExactETHForTokens - send QFC as value
+          const swapData = routerIface.encodeFunctionData('swapExactETHForTokens', [
+            amountOutMin,
+            path,
+            userAddress,
+            deadline,
+          ]);
+          swapTx = {
+            to: DEX_ROUTER_ADDRESS,
+            data: swapData,
+            value: '0x' + amountIn.toString(16),
+          };
+        } else if (isToNative) {
+          // swapExactTokensForETH
+          const swapData = routerIface.encodeFunctionData('swapExactTokensForETH', [
+            amountIn,
+            amountOutMin,
+            path,
+            userAddress,
+            deadline,
+          ]);
+          swapTx = {
+            to: DEX_ROUTER_ADDRESS,
+            data: swapData,
+            value: '0x0',
+          };
+        } else {
+          // swapExactTokensForTokens
+          const swapData = routerIface.encodeFunctionData('swapExactTokensForTokens', [
+            amountIn,
+            amountOutMin,
+            path,
+            userAddress,
+            deadline,
+          ]);
+          swapTx = {
+            to: DEX_ROUTER_ADDRESS,
+            data: swapData,
+            value: '0x0',
+          };
+        }
+
+        const swapHash = await walletController.sendTransaction(swapTx);
+
+        // Determine token symbols for history
+        let fromSymbol = 'QFC';
+        let toSymbol = 'QFC';
+        if (!isFromNative) {
+          try {
+            const c = new ethers.Contract(fromAddr, ERC20_ABI, provider);
+            fromSymbol = await c.symbol();
+          } catch { /* use default */ }
+        }
+        if (!isToNative) {
+          try {
+            const c = new ethers.Contract(toAddr, ERC20_ABI, provider);
+            toSymbol = await c.symbol();
+          } catch { /* use default */ }
+        }
+
+        // Save swap tx to history
+        const swapRecord: TransactionRecord = {
+          hash: swapHash,
+          from: account,
+          to: DEX_ROUTER_ADDRESS,
+          value: `${amount} ${fromSymbol} → ${ethers.formatUnits(expectedOut, toDecimals)} ${toSymbol}`,
+          timestamp: Date.now(),
+          status: 'pending',
+          type: 'contract',
+        };
+        await txStorage.addTransaction(account, swapRecord);
+
+        result = swapHash;
+        break;
+      }
+
       default:
         throw {
           code: RPC_ERRORS.METHOD_NOT_FOUND.code,
