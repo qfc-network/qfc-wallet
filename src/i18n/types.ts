@@ -54,6 +54,15 @@ export interface Translations {
     tokenSent: string;
     tokenReceived: string;
     contractCall: string;
+    faucet: string;
+    faucetTitle: string;
+    faucetDescription: string;
+    faucetRequest: string;
+    faucetReceived: string;
+    faucetCooldown: string;
+    faucetError: string;
+    faucetMainnetWarning: string;
+    comingSoon: string;
   };
   send: {
     title: string;
@@ -77,6 +86,10 @@ export interface Translations {
     invalidAmount: string;
     insufficientBalance: string;
     transactionSent: string;
+    gasSpeed: string;
+    gasSlow: string;
+    gasStandard: string;
+    gasFast: string;
   };
   receive: {
     title: string;

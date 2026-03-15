@@ -82,7 +82,7 @@ export default function Unlock() {
       {/* Footer */}
       <div className="p-6 text-center">
         <p className="text-sm text-gray-400">
-          QFC {t.common.wallet} v1.0.0
+          QFC {t.common.wallet} v1.0.1
         </p>
       </div>
     </div>

@@ -293,6 +293,47 @@ export default function Send({ onBack }: SendProps) {
         )}
 
         <div className="bg-white rounded-xl p-4 space-y-3">
+          {/* Gas Presets */}
+          {estimatedGasPriceWei !== null && estimatedGasPriceWei > 0n && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t.send.gasSpeed || 'Transaction Speed'}
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: t.send.gasSlow || 'Slow', multiplier: 0.8 },
+                  { label: t.send.gasStandard || 'Standard', multiplier: 1.0 },
+                  { label: t.send.gasFast || 'Fast', multiplier: 1.5 },
+                ].map(({ label, multiplier }) => {
+                  const presetWei = BigInt(Math.floor(Number(estimatedGasPriceWei) * multiplier));
+                  const presetGwei = (Number(presetWei) / 1e9).toFixed(2);
+                  const isSelected = !customGasPrice && multiplier === 1.0 ||
+                    customGasPrice && BigInt(Math.floor(parseFloat(customGasPrice) * 1e9)) === presetWei;
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => {
+                        if (multiplier === 1.0) {
+                          setCustomGasPrice('');
+                        } else {
+                          setCustomGasPrice((Number(presetWei) / 1e9).toFixed(2));
+                        }
+                      }}
+                      className={`p-2 rounded-lg border text-center transition-colors ${
+                        isSelected
+                          ? 'border-qfc-500 bg-qfc-50 text-qfc-700'
+                          : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                      }`}
+                    >
+                      <div className="text-xs font-medium">{label}</div>
+                      <div className="text-[10px] text-gray-500 mt-0.5">{presetGwei} Gwei</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <button
             onClick={() => setShowFeeOptions(!showFeeOptions)}
             className="text-sm text-qfc-600 hover:underline"

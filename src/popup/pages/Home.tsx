@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink, User } from 'lucide-react';
+import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink, User, Droplets } from 'lucide-react';
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { NetworkKey, TOKEN_LOGOS } from '../../utils/constants';
@@ -17,7 +17,7 @@ import AddDerivedAccountDialog from '../components/AddDerivedAccountDialog';
 import type { Token } from '../../types/token';
 
 type Tab = 'assets' | 'activity';
-type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'sendToken' | 'inference';
+type View = 'home' | 'send' | 'receive' | 'settings' | 'addToken' | 'sendToken' | 'inference' | 'faucet';
 
 export default function Home() {
   const { currentAddress, balance, network, networkKey, tokens, transactions, pendingApproval, wallets, networks } = useWalletStore();
@@ -113,6 +113,10 @@ export default function Home() {
 
   if (view === 'inference') {
     return <Inference onBack={() => setView('home')} />;
+  }
+
+  if (view === 'faucet') {
+    return <FaucetPage onBack={() => setView('home')} />;
   }
 
   if (view === 'sendToken' && selectedToken) {
@@ -295,16 +299,25 @@ export default function Home() {
           label={t.common.send}
           onClick={() => setView('send')}
         />
-        <QuickAction
-          icon={<span className="text-lg">🧠</span>}
-          label={t.inference.title}
-          onClick={() => setView('inference')}
-        />
+        {networkKey !== 'mainnet' ? (
+          <QuickAction
+            icon={<Droplets size={20} />}
+            label={t.home.faucet || 'Faucet'}
+            onClick={() => setView('faucet')}
+          />
+        ) : (
+          <QuickAction
+            icon={<span className="text-lg">🧠</span>}
+            label={t.inference.title}
+            onClick={() => setView('inference')}
+          />
+        )}
         <QuickAction
           icon={<span className="text-lg">⇄</span>}
           label={t.common.swap}
           onClick={() => {}}
           disabled
+          badge={t.home.comingSoon || 'Soon'}
         />
       </div>
 
@@ -324,13 +337,18 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveTab('activity')}
-            className={`pb-2 px-1 border-b-2 font-medium transition-colors ${
+            className={`pb-2 px-1 border-b-2 font-medium transition-colors flex items-center gap-1.5 ${
               activeTab === 'activity'
                 ? 'border-qfc-500 text-qfc-600'
                 : 'border-transparent text-gray-500'
             }`}
           >
             {t.home.activity}
+            {transactions.filter(tx => tx.status === 'pending').length > 0 && (
+              <span className="bg-yellow-400 text-yellow-900 text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {transactions.filter(tx => tx.status === 'pending').length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -392,22 +410,29 @@ function QuickAction({
   label,
   onClick,
   disabled,
+  badge,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  badge?: string;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`bg-white rounded-xl p-4 shadow-sm transition-all ${
+      className={`relative bg-white rounded-xl p-4 shadow-sm transition-all ${
         disabled
           ? 'opacity-50 cursor-not-allowed'
           : 'hover:shadow-md active:scale-95'
       }`}
     >
+      {badge && (
+        <span className="absolute -top-1 -right-1 text-[8px] bg-qfc-500 text-white px-1.5 py-0.5 rounded-full">
+          {badge}
+        </span>
+      )}
       <div className="text-qfc-500 mb-2 flex justify-center">{icon}</div>
       <div className="text-xs text-gray-600">{label}</div>
     </button>
@@ -544,6 +569,126 @@ function TransactionItem({
         >
           <ExternalLink size={14} />
         </a>
+      </div>
+    </div>
+  );
+}
+
+function FaucetPage({ onBack }: { onBack: () => void }) {
+  const { currentAddress, network, networkKey } = useWalletStore();
+  const t = useTranslation();
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ txHash: string; amount: string } | null>(null);
+  const [error, setError] = useState('');
+  const [cooldown, setCooldown] = useState(false);
+
+  const handleRequest = async () => {
+    if (!currentAddress) return;
+    setLoading(true);
+    setError('');
+    setResult(null);
+
+    try {
+      const amountWei = '0x' + (BigInt(10) * BigInt(1e18)).toString(16); // 10 QFC
+      const res = await fetch(network.rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'qfc_requestFaucet',
+          params: [currentAddress, amountWei],
+        }),
+      });
+      const json = await res.json();
+      if (json.error) {
+        if (json.error.message?.includes('cooldown') || json.error.message?.includes('24')) {
+          setCooldown(true);
+          setError(t.home.faucetCooldown || 'Please wait 24 hours between requests');
+        } else {
+          setError(json.error.message || t.common.error);
+        }
+      } else if (json.result) {
+        setResult({ txHash: json.result.txHash, amount: '10' });
+        // Refresh balance after receiving tokens
+        setTimeout(() => walletActions.refreshBalance(), 3000);
+      }
+    } catch {
+      setError(t.home.faucetError || 'Failed to request tokens. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isTestnet = networkKey === 'testnet' || networkKey === 'localhost';
+
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-qfc-50 to-blue-50 flex flex-col">
+      <div className="p-4 flex items-center gap-3">
+        <button onClick={onBack} className="p-2 hover:bg-white/50 rounded-lg">
+          <ArrowDownToLine size={24} className="rotate-180" />
+        </button>
+        <Droplets size={20} className="text-qfc-500" />
+        <h1 className="text-lg font-bold">{t.home.faucet || 'Testnet Faucet'}</h1>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-r from-qfc-400 to-blue-400 flex items-center justify-center mb-4">
+          <Droplets size={32} className="text-white" />
+        </div>
+
+        <h2 className="text-xl font-bold text-gray-800 mb-2">
+          {t.home.faucetTitle || 'Get Test Tokens'}
+        </h2>
+        <p className="text-gray-500 text-center mb-6 text-sm">
+          {t.home.faucetDescription || 'Request 10 QFC for testing on the testnet. Limited to once every 24 hours.'}
+        </p>
+
+        {!isTestnet && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4 w-full max-w-sm">
+            <p className="text-yellow-800 text-sm text-center">
+              {t.home.faucetMainnetWarning || 'Faucet is only available on testnet'}
+            </p>
+          </div>
+        )}
+
+        {result ? (
+          <div className="bg-white rounded-xl p-4 w-full max-w-sm mb-4">
+            <div className="text-center mb-3">
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="font-medium text-gray-800">{t.home.faucetReceived || 'Received'} {result.amount} QFC</p>
+            </div>
+            <p className="text-xs text-gray-500 mb-1">Transaction Hash</p>
+            <p className="text-xs font-mono break-all text-gray-700">{result.txHash}</p>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 w-full max-w-sm">
+            <p className="text-red-600 text-sm text-center">{error}</p>
+          </div>
+        ) : null}
+
+        <button
+          onClick={handleRequest}
+          disabled={loading || !isTestnet || cooldown}
+          className="w-full max-w-sm py-3 bg-gradient-to-r from-qfc-500 to-blue-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          {loading
+            ? t.common.loading
+            : cooldown
+            ? (t.home.faucetCooldown || 'Cooldown (24h)')
+            : (t.home.faucetRequest || 'Request 10 QFC')}
+        </button>
+
+        <button
+          onClick={onBack}
+          className="mt-3 text-sm text-gray-500 hover:text-gray-700"
+        >
+          {t.common.back}
+        </button>
       </div>
     </div>
   );

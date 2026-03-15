@@ -31,6 +31,7 @@ class QFCProvider extends EventTarget {
   private _requestId = 0;
   private _pendingRequests: Map<number, PendingRequest> = new Map();
   private _connected = false;
+  private _listeners: Map<string, Set<EventListener>> = new Map();
 
   constructor() {
     super();
@@ -227,8 +228,11 @@ class QFCProvider extends EventTarget {
    * Legacy: on() event listener
    */
   on(event: string, callback: (data: unknown) => void): this {
-    this.addEventListener(event, ((e: CustomEvent) =>
-      callback(e.detail)) as EventListener);
+    const handler = ((e: CustomEvent) => callback(e.detail)) as EventListener;
+    (handler as unknown as Record<string, unknown>)._original = callback;
+    this.addEventListener(event, handler);
+    if (!this._listeners.has(event)) this._listeners.set(event, new Set());
+    this._listeners.get(event)!.add(handler);
     return this;
   }
 
@@ -238,9 +242,13 @@ class QFCProvider extends EventTarget {
   once(event: string, callback: (data: unknown) => void): this {
     const handler = ((e: CustomEvent) => {
       callback(e.detail);
-      this.removeEventListener(event, handler as EventListener);
+      this.removeEventListener(event, handler);
+      this._listeners.get(event)?.delete(handler);
     }) as EventListener;
+    (handler as unknown as Record<string, unknown>)._original = callback;
     this.addEventListener(event, handler);
+    if (!this._listeners.has(event)) this._listeners.set(event, new Set());
+    this._listeners.get(event)!.add(handler);
     return this;
   }
 
@@ -248,17 +256,39 @@ class QFCProvider extends EventTarget {
    * Legacy: removeListener()
    */
   removeListener(event: string, callback: (data: unknown) => void): this {
-    this.removeEventListener(event, callback as EventListener);
+    const handlers = this._listeners.get(event);
+    if (handlers) {
+      for (const handler of handlers) {
+        if ((handler as unknown as Record<string, unknown>)._original === callback) {
+          this.removeEventListener(event, handler);
+          handlers.delete(handler);
+          break;
+        }
+      }
+    }
     return this;
   }
 
   /**
    * Legacy: removeAllListeners()
    */
-  removeAllListeners(_event?: string): this {
-    // Note: EventTarget doesn't have a built-in removeAllListeners
-    // This is a simplified implementation
-    console.warn('[QFC] removeAllListeners not fully implemented');
+  removeAllListeners(event?: string): this {
+    if (event) {
+      const handlers = this._listeners.get(event);
+      if (handlers) {
+        for (const handler of handlers) {
+          this.removeEventListener(event, handler);
+        }
+        handlers.clear();
+      }
+    } else {
+      for (const [evt, handlers] of this._listeners) {
+        for (const handler of handlers) {
+          this.removeEventListener(evt, handler);
+        }
+      }
+      this._listeners.clear();
+    }
     return this;
   }
 }
