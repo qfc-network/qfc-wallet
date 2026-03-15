@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import { encrypt, decrypt, isLegacyCiphertext, hashString } from '../utils/crypto';
 import { walletStorage } from '../utils/storage';
 import { DEFAULT_NETWORK, LOCK_TIMEOUT_MS } from '../utils/constants';
-import type { Wallet, CreateWalletResult, NetworkConfig } from '../types/wallet';
+import type { Wallet, CreateWalletResult, NetworkConfig, WalletType } from '../types/wallet';
 
 export class WalletController {
   private wallets: Wallet[] = [];
@@ -234,6 +234,53 @@ export class WalletController {
     return newWallet;
   }
 
+  async addHardwareAccount(
+    address: string,
+    hdPath: string,
+    deviceType: WalletType,
+    name?: string,
+  ): Promise<string> {
+    if (this.wallets.some((w) => w.address === address)) {
+      throw new Error('Account already exists');
+    }
+
+    const newWallet: Wallet = {
+      address,
+      encryptedPrivateKey: '', // No private key — signing happens on device
+      name: name || `${deviceType === 'ledger' ? 'Ledger' : 'Trezor'} Account`,
+      createdAt: Date.now(),
+      type: deviceType,
+      hdPath,
+    };
+
+    this.wallets.push(newWallet);
+    this.currentWallet = newWallet;
+    await this.saveWallets();
+
+    return address;
+  }
+
+  isHardwareAccount(address?: string): boolean {
+    const addr = address || this.currentWallet?.address;
+    if (!addr) return false;
+    const wallet = this.wallets.find((w) => w.address === addr);
+    return wallet?.type === 'ledger' || wallet?.type === 'trezor';
+  }
+
+  getAccountType(address?: string): WalletType {
+    const addr = address || this.currentWallet?.address;
+    if (!addr) return 'software';
+    const wallet = this.wallets.find((w) => w.address === addr);
+    return wallet?.type || 'software';
+  }
+
+  getAccountHdPath(address?: string): string | undefined {
+    const addr = address || this.currentWallet?.address;
+    if (!addr) return undefined;
+    const wallet = this.wallets.find((w) => w.address === addr);
+    return wallet?.hdPath;
+  }
+
   async renameAccount(address: string, name: string): Promise<void> {
     const wallet = this.wallets.find((w) => w.address === address);
     if (!wallet) {
@@ -276,9 +323,16 @@ export class WalletController {
   }
 
   async sendTransaction(tx: ethers.TransactionRequest): Promise<string> {
-    if (!this.isUnlocked || !this.currentWallet || !this.password) {
+    if (!this.isUnlocked || !this.currentWallet) {
       throw new Error('Wallet is locked');
     }
+
+    // Hardware wallet signing is handled by the popup via WebHID/WebUSB
+    if (this.isHardwareAccount()) {
+      throw new Error('HARDWARE_SIGN_REQUIRED');
+    }
+
+    if (!this.password) throw new Error('Wallet is locked');
 
     const privateKey = decrypt(
       this.currentWallet.encryptedPrivateKey,
@@ -293,10 +347,26 @@ export class WalletController {
     return txResponse.hash;
   }
 
+  /**
+   * Submit a pre-signed transaction (from hardware wallet)
+   */
+  async sendSignedTransaction(signedTx: string): Promise<string> {
+    const txResponse = await this.provider.broadcastTransaction(signedTx);
+    this.startLockTimer();
+    this.touchActivity();
+    return txResponse.hash;
+  }
+
   async signMessage(message: string): Promise<string> {
-    if (!this.isUnlocked || !this.currentWallet || !this.password) {
+    if (!this.isUnlocked || !this.currentWallet) {
       throw new Error('Wallet is locked');
     }
+
+    if (this.isHardwareAccount()) {
+      throw new Error('HARDWARE_SIGN_REQUIRED');
+    }
+
+    if (!this.password) throw new Error('Wallet is locked');
 
     const privateKey = decrypt(
       this.currentWallet.encryptedPrivateKey,
@@ -312,9 +382,15 @@ export class WalletController {
   }
 
   async signTypedData(typedData: string): Promise<string> {
-    if (!this.isUnlocked || !this.currentWallet || !this.password) {
+    if (!this.isUnlocked || !this.currentWallet) {
       throw new Error('Wallet is locked');
     }
+
+    if (this.isHardwareAccount()) {
+      throw new Error('HARDWARE_SIGN_REQUIRED');
+    }
+
+    if (!this.password) throw new Error('Wallet is locked');
 
     const privateKey = decrypt(
       this.currentWallet.encryptedPrivateKey,

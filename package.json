@@ -12,6 +12,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@ledgerhq/hw-app-eth": "^7.5.0",
+    "@ledgerhq/hw-transport-webhid": "^6.32.0",
+    "@trezor/connect-web": "^9.7.2",
     "crypto-js": "^4.2.0",
     "ethers": "^6.11.0",
     "lucide-react": "^0.312.0",
