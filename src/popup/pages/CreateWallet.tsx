@@ -102,9 +102,8 @@ export default function CreateWallet() {
 
   const renderChoice = () => (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
-      <div className="w-20 h-20 rounded-full bg-gradient-to-r from-qfc-500 to-blue-500 flex items-center justify-center mb-6">
-        <span className="text-3xl text-white font-bold">Q</span>
-      </div>
+      <img src="/icons/qfc.svg" alt="QFC" className="w-20 h-20 rounded-full mb-6" width={80} height={80} />
+
 
       <h1 className="text-2xl font-bold text-gray-800 mb-2">QFC {t.common.wallet}</h1>
       <p className="text-gray-500 text-center mb-8">
