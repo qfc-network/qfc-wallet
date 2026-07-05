@@ -1,4 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <circle cx="50" cy="50" r="46" fill="#3b82f6"/>
-  <text x="50" y="64" font-size="42" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif">Q</text>
+  <defs>
+    <linearGradient id="qfcBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a1628"/>
+      <stop offset="100%" stop-color="#0d2847"/>
+    </linearGradient>
+    <linearGradient id="qfcRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4fc3f7"/>
+      <stop offset="50%" stop-color="#0288d1"/>
+      <stop offset="100%" stop-color="#4fc3f7"/>
+    </linearGradient>
+    <linearGradient id="qfcTxt" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e0f7fa"/>
+      <stop offset="100%" stop-color="#4fc3f7"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#qfcBg)"/>
+  <circle cx="50" cy="50" r="46" fill="none" stroke="url(#qfcRing)" stroke-width="3"/>
+  <text x="50" y="61" font-size="29" font-weight="700" text-anchor="middle" fill="url(#qfcTxt)" font-family="Arial, Helvetica, sans-serif" letter-spacing="1">QFC</text>
 </svg>
