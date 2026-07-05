@@ -28,6 +28,10 @@ export interface NetworkConfig {
   explorerUrl: string;
   symbol: string;
   decimals: number;
+  /** DEX router for swaps (per-network; undefined = swaps unavailable). */
+  dexRouter?: string;
+  /** Wrapped-QFC address used as the swap base/intermediary pair. */
+  wqfc?: string;
 }
 
 export interface CreateWalletResult {

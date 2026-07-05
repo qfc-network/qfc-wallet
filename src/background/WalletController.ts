@@ -322,6 +322,18 @@ export class WalletController {
     return ethers.formatEther(balance);
   }
 
+  /**
+   * Raw balance in wei. Used by the `eth_getBalance` RPC handler — never
+   * round-trip through formatEther + parseFloat, which is lossy past ~15
+   * significant digits and silently drops low-order wei.
+   */
+  async getBalanceWei(address?: string, blockTag?: ethers.BlockTag): Promise<bigint> {
+    const addr = address || this.currentWallet?.address;
+    if (!addr) throw new Error('No address');
+
+    return this.provider.getBalance(addr, blockTag);
+  }
+
   async sendTransaction(tx: ethers.TransactionRequest): Promise<string> {
     if (!this.isUnlocked || !this.currentWallet) {
       throw new Error('Wallet is locked');

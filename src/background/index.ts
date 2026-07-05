@@ -181,8 +181,8 @@ async function handleMessage(
       // Balance and nonce
       case 'eth_getBalance': {
         const [address, blockTag] = params as [string, string?];
-        const balance = await walletController.getBalance(address, blockTag as ethers.BlockTag);
-        result = '0x' + BigInt(Math.floor(parseFloat(balance) * 1e18)).toString(16);
+        const balanceWei = await walletController.getBalanceWei(address, blockTag as ethers.BlockTag);
+        result = '0x' + balanceWei.toString(16);
         break;
       }
 
@@ -1110,8 +1110,11 @@ async function handleMessage(
           'function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)',
           'function WETH() external pure returns (address)',
         ];
-        const DEX_ROUTER_ADDRESS = '0x58CF2C78F52f70E45AE8758282910b6A7Ee2be2e';
-        const WQFC_ADDRESS = '0x91f177d5f9546Bd57c4C24e8707Eb9E862E7f0Bb';
+        if (!network.dexRouter || !network.wqfc) {
+          throw new Error('Swaps are not available on this network');
+        }
+        const DEX_ROUTER_ADDRESS = network.dexRouter;
+        const WQFC_ADDRESS = network.wqfc;
 
         const router = new ethers.Contract(DEX_ROUTER_ADDRESS, ROUTER_ABI, provider);
 
@@ -1176,8 +1179,11 @@ async function handleMessage(
         const network = walletController.getNetwork();
         const provider = new ethers.JsonRpcProvider(network.rpcUrl);
 
-        const DEX_ROUTER_ADDRESS = '0x58CF2C78F52f70E45AE8758282910b6A7Ee2be2e';
-        const WQFC_ADDRESS = '0x91f177d5f9546Bd57c4C24e8707Eb9E862E7f0Bb';
+        if (!network.dexRouter || !network.wqfc) {
+          throw new Error('Swaps are not available on this network');
+        }
+        const DEX_ROUTER_ADDRESS = network.dexRouter;
+        const WQFC_ADDRESS = network.wqfc;
 
         const ROUTER_ABI = [
           'function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)',

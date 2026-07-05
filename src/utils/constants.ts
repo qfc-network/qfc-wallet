@@ -19,6 +19,9 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     explorerUrl: 'https://explorer.testnet.qfc.network',
     symbol: 'QFC',
     decimals: 18,
+    // Redeployed 2026-07-05 after the chain reset.
+    dexRouter: '0x58CF2C78F52f70E45AE8758282910b6A7Ee2be2e',
+    wqfc: '0x91f177d5f9546Bd57c4C24e8707Eb9E862E7f0Bb',
   },
   mainnet: {
     chainId: 9001,
