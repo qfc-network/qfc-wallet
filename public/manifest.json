@@ -13,6 +13,9 @@
     "default_icon": "icons/icon48.png",
     "default_title": "QFC Wallet"
   },
+  "side_panel": {
+    "default_path": "popup.html?view=panel"
+  },
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -29,7 +32,8 @@
     "storage",
     "activeTab",
     "notifications",
-    "alarms"
+    "alarms",
+    "sidePanel"
   ],
   "host_permissions": [
     "https://*/*",

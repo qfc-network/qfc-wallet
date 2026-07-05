@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink, User, Droplets, Search } from 'lucide-react';
+import { Copy, Send as SendIcon, ArrowDownToLine, Lock, RefreshCw, ChevronDown, Plus, ExternalLink, User, Droplets, Search, PanelRight, Maximize2 } from 'lucide-react';
 import { useWalletStore, walletActions } from '../store';
 import { formatAddress } from '../../utils/validation';
 import { NetworkKey, TOKEN_LOGOS } from '../../utils/constants';
@@ -38,6 +38,28 @@ export default function Home() {
   const [txSearchQuery, setTxSearchQuery] = useState('');
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'send' | 'receive' | 'token' | 'contract'>('all');
   const [txStatusFilter, setTxStatusFilter] = useState<'all' | 'pending' | 'confirmed' | 'failed'>('all');
+
+  // Which surface the UI is rendered in: 'popup' (toolbar), 'panel'
+  // (Chrome side panel), or 'tab' (full browser tab). Set via query param
+  // by the entry points; toolbar popup has none → 'popup'.
+  const viewMode: 'popup' | 'panel' | 'tab' =
+    (new URLSearchParams(window.location.search).get('view') as 'panel' | 'tab' | null) ?? 'popup';
+
+  const openInSidebar = async () => {
+    try {
+      const win = await chrome.windows.getCurrent();
+      // chrome.sidePanel.open must run inside a user gesture (it does — click).
+      await chrome.sidePanel.open({ windowId: win.id! });
+      if (viewMode === 'popup') window.close();
+    } catch (e) {
+      console.error('[QFC] Failed to open side panel:', e);
+    }
+  };
+
+  const openInTab = async () => {
+    await chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?view=tab') });
+    if (viewMode === 'popup') window.close();
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -253,6 +275,24 @@ export default function Home() {
               </div>
             )}
           </div>
+          {viewMode !== 'panel' && (
+            <button
+              onClick={openInSidebar}
+              className="p-2 hover:bg-white/50 rounded-lg"
+              title="Open in sidebar"
+            >
+              <PanelRight size={18} />
+            </button>
+          )}
+          {viewMode !== 'tab' && (
+            <button
+              onClick={openInTab}
+              className="p-2 hover:bg-white/50 rounded-lg"
+              title="Expand to full tab"
+            >
+              <Maximize2 size={18} />
+            </button>
+          )}
           <button
             onClick={handleRefresh}
             className="p-2 hover:bg-white/50 rounded-lg"
