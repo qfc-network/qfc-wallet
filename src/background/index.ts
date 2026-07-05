@@ -1110,8 +1110,8 @@ async function handleMessage(
           'function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)',
           'function WETH() external pure returns (address)',
         ];
-        const DEX_ROUTER_ADDRESS = '0x64Fe09ce5104854c804bc0D56bA6366A2F000672';
-        const WQFC_ADDRESS = '0x60cC5DbC63Db58711e13022952cadb0f52da6069';
+        const DEX_ROUTER_ADDRESS = '0x58CF2C78F52f70E45AE8758282910b6A7Ee2be2e';
+        const WQFC_ADDRESS = '0x91f177d5f9546Bd57c4C24e8707Eb9E862E7f0Bb';
 
         const router = new ethers.Contract(DEX_ROUTER_ADDRESS, ROUTER_ABI, provider);
 
@@ -1176,8 +1176,8 @@ async function handleMessage(
         const network = walletController.getNetwork();
         const provider = new ethers.JsonRpcProvider(network.rpcUrl);
 
-        const DEX_ROUTER_ADDRESS = '0x64Fe09ce5104854c804bc0D56bA6366A2F000672';
-        const WQFC_ADDRESS = '0x60cC5DbC63Db58711e13022952cadb0f52da6069';
+        const DEX_ROUTER_ADDRESS = '0x58CF2C78F52f70E45AE8758282910b6A7Ee2be2e';
+        const WQFC_ADDRESS = '0x91f177d5f9546Bd57c4C24e8707Eb9E862E7f0Bb';
 
         const ROUTER_ABI = [
           'function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)',
